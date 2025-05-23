@@ -1,5 +1,4 @@
 // server.js
-require('dotenv').config();
 require('dotenv').config(); // Load environment variables
 
 const express = require('express');
@@ -8,9 +7,8 @@ const bodyParser = require('body-parser');
 const fs = require('fs');
 const path = require('path');
 const twilio = require('twilio');
-const PAYSTACK_SECRET_KEY = process.env.PAYSTACK_SECRET_KEY;
 
-// Load env variables
+const PAYSTACK_SECRET_KEY = process.env.PAYSTACK_SECRET_KEY;
 const accountSid = process.env.TWILIO_ACCOUNT_SID;
 const authToken = process.env.TWILIO_AUTH_TOKEN;
 const twilioPhone = process.env.TWILIO_PHONE_NUMBER;
@@ -22,10 +20,12 @@ const app = express();
 app.use(cors());
 app.use(bodyParser.json());
 
+// Utility: Generate a 6-digit access code
 function generateAccessCode() {
-  return Math.floor(100000 + Math.random() * 900000).toString(); // 6-digit code
+  return Math.floor(100000 + Math.random() * 900000).toString();
 }
 
+// Endpoint: Handle access code requests
 app.post('/api/request-code', async (req, res) => {
   const { name, phone } = req.body;
 
@@ -61,6 +61,7 @@ app.post('/api/request-code', async (req, res) => {
   }
 });
 
+// Start server
 app.listen(PORT, () => {
-  console.log(`?? Server running at http://localhost:${PORT}`);
+  console.log(`? Server running on port ${PORT}. If hosted on Render, access via your Render URL.`);
 });
