@@ -16,16 +16,21 @@ const PORT = process.env.PORT || 5000;
 const client = twilio(accountSid, authToken);
 const app = express();
 
-app.use(cors({
+const corsOptions = {
   origin: [
     'https://tickquiz.com',
     'http://localhost:3000',
     'https://tickquiz-frontend.onrender.com',
-    'https://tickquizs.netlify.app' // ? Added Netlify domain
+    'https://tickquiz.netlify.app'  // <-- fixed typo here
   ],
   methods: ['GET', 'POST'],
   allowedHeaders: ['Content-Type', 'Authorization']
-}));
+};
+
+app.use(cors(corsOptions));
+
+// Enable OPTIONS preflight requests for all routes
+app.options('*', cors(corsOptions));
 
 app.use(bodyParser.json());
 
