@@ -21,17 +21,14 @@ const corsOptions = {
     'https://tickquiz.com',
     'http://localhost:3000',
     'https://tickquiz-frontend.onrender.com',
-    'https://tickquiz.netlify.app'  // <-- fixed typo here
+    'https://tickquiz.netlify.app'
   ],
   methods: ['GET', 'POST'],
   allowedHeaders: ['Content-Type', 'Authorization']
 };
 
 app.use(cors(corsOptions));
-
-// Enable OPTIONS preflight requests for all routes
 app.options('*', cors(corsOptions));
-
 app.use(bodyParser.json());
 
 function generateAccessCode(length = 8) {
@@ -62,7 +59,7 @@ app.post('/api/initiate-payment', async (req, res) => {
       body: JSON.stringify({
         email,
         amount: amountKobo,
-        callback_url: "https://tickquiz.com/verify",
+        callback_url: "https://tickquiz.netlify.app/verify", // ? updated callback URL
         metadata: { name, phone },
       }),
     });
@@ -138,7 +135,7 @@ app.post('/api/verify', async (req, res) => {
     fs.writeFileSync(filePath, JSON.stringify(accessCodes, null, 2));
 
     await client.messages.create({
-      body: `? Hello ${name}, your TickQuiz access code is: ${accessCode}`,
+      body: `?? Hello ${name}, your TickQuiz access code is: ${accessCode}`,
       from: twilioPhone,
       to: phone
     });
@@ -179,7 +176,7 @@ app.post('/api/use-access-code', (req, res) => {
 });
 
 app.get('/', (req, res) => {
-  res.send('? TickQuiz Backend is running.');
+  res.send('?? TickQuiz Backend is running.');
 });
 
 app.listen(PORT, () => {
