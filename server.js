@@ -59,7 +59,7 @@ app.post('/api/initiate-payment', async (req, res) => {
       body: JSON.stringify({
         email,
         amount: amountKobo,
-        callback_url: "https://tickquiz.netlify.app/verify", // ? updated callback URL
+        callback_url: "https://tickquiz.com/verify",
         metadata: { name, phone },
       }),
     });
@@ -180,5 +180,5 @@ app.get('/', (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`? Server running on port ${PORT}`);
+  console.log(`?? Server running on port ${PORT}`);
 });
