@@ -1,5 +1,5 @@
 require('dotenv').config(); // Load environment variables
-const fetch = (...args) => import('node-fetch').then(({ default: fetch }) => fetch(...args));
+// No need to import fetch in Node 18+
 const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser');
