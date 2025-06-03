@@ -40,7 +40,7 @@ function generateAccessCode(length = 8) {
   return code;
 }
 
-// INITIATE PAYMENT
+// ? INITIATE PAYMENT
 app.post('/api/initiate-payment', async (req, res) => {
   const { name, email, phone } = req.body;
 
@@ -60,7 +60,7 @@ app.post('/api/initiate-payment', async (req, res) => {
       body: JSON.stringify({
         email,
         amount: amountKobo,
-        callback_url: "https://tickquiz.com/verify-payment",
+        callback_url: "https://tickquiz.com/verify", // ? Correct frontend route
         metadata: { name, phone },
       }),
     });
@@ -81,7 +81,7 @@ app.post('/api/initiate-payment', async (req, res) => {
   }
 });
 
-// VERIFY PAYMENT (now at /api/verify-payment)
+// ? VERIFY PAYMENT
 app.post('/api/verify-payment', async (req, res) => {
   const { reference } = req.body;
 
@@ -137,7 +137,7 @@ app.post('/api/verify-payment', async (req, res) => {
     fs.writeFileSync(filePath, JSON.stringify(accessCodes, null, 2));
 
     await client.messages.create({
-      body: `?? Hello ${name}, your TickQuiz access code is: ${accessCode}`,
+      body: `? Hello ${name}, your TickQuiz access code is: ${accessCode}`,
       from: twilioPhone,
       to: phone
     });
@@ -151,37 +151,14 @@ app.post('/api/verify-payment', async (req, res) => {
   }
 });
 
-// CALLBACK CONFIRMATION ROUTE
-app.get('/verify-payment', async (req, res) => {
+// ? OPTIONAL: Redirect GET /verify-payment to frontend
+app.get('/verify-payment', (req, res) => {
   const { reference } = req.query;
-
-  if (!reference) {
-    return res.status(400).send("? Missing payment reference.");
-  }
-
-  try {
-    const verifyResponse = await fetch(`https://api.paystack.co/transaction/verify/${reference}`, {
-      method: 'GET',
-      headers: {
-        Authorization: `Bearer ${PAYSTACK_SECRET_KEY}`,
-        'Content-Type': 'application/json',
-      },
-    });
-
-    const verifyData = await verifyResponse.json();
-
-    if (!verifyData.status || verifyData.data.status !== 'success') {
-      return res.send("? Payment verification failed. Please try again.");
-    }
-
-    return res.send("? Payment verified successfully. You will receive your access code via SMS shortly!");
-  } catch (error) {
-    console.error("? Verification error:", error.message);
-    return res.status(500).send("? Server error verifying payment.");
-  }
+  if (!reference) return res.redirect('https://tickquiz.com/');
+  return res.redirect(`https://tickquiz.com/verify?reference=${reference}`);
 });
 
-// USE ACCESS CODE
+// ? USE ACCESS CODE
 app.post('/api/use-access-code', (req, res) => {
   const { code } = req.body;
   if (!code) return res.status(400).json({ success: false, message: 'Access code is required.' });
@@ -208,7 +185,7 @@ app.post('/api/use-access-code', (req, res) => {
   return res.status(200).json({ success: true, message: 'Access granted.', usageCount: codeEntry.usageCount });
 });
 
-// HOME ROUTE
+// ? HOME
 app.get('/', (req, res) => {
   res.send('? TickQuiz Backend is running.');
 });
