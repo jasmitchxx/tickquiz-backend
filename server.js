@@ -1,5 +1,4 @@
 require('dotenv').config(); // Load environment variables
-// No need to import fetch in Node 18+
 const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser');
@@ -61,7 +60,7 @@ app.post('/api/initiate-payment', async (req, res) => {
       body: JSON.stringify({
         email,
         amount: amountKobo,
-        callback_url: "https://tickquiz.com/verify",
+        callback_url: "https://tickquiz.com/verify-payment",
         metadata: { name, phone },
       }),
     });
@@ -82,8 +81,8 @@ app.post('/api/initiate-payment', async (req, res) => {
   }
 });
 
-// VERIFY PAYMENT (from frontend POST)
-app.post('/api/verify', async (req, res) => {
+// VERIFY PAYMENT (now at /api/verify-payment)
+app.post('/api/verify-payment', async (req, res) => {
   const { reference } = req.body;
 
   if (!reference) {
@@ -138,13 +137,13 @@ app.post('/api/verify', async (req, res) => {
     fs.writeFileSync(filePath, JSON.stringify(accessCodes, null, 2));
 
     await client.messages.create({
-      body: `? Hello ${name}, your TickQuiz access code is: ${accessCode}`,
+      body: `?? Hello ${name}, your TickQuiz access code is: ${accessCode}`,
       from: twilioPhone,
       to: phone
     });
 
     console.log(`? Payment verified & code sent to ${phone}: ${accessCode}`);
-    res.status(200).json({ success: true, accessCode, phone });
+    res.status(200).json({ success: true, message: 'Payment verified. Access code sent!', accessCode, phone });
 
   } catch (error) {
     console.error('? Verification error:', error.message);
@@ -152,8 +151,8 @@ app.post('/api/verify', async (req, res) => {
   }
 });
 
-// ? CONFIRMATION ROUTE (called by Paystack redirect)
-app.get('/verify', async (req, res) => {
+// CALLBACK CONFIRMATION ROUTE
+app.get('/verify-payment', async (req, res) => {
   const { reference } = req.query;
 
   if (!reference) {
@@ -177,8 +176,8 @@ app.get('/verify', async (req, res) => {
 
     return res.send("? Payment verified successfully. You will receive your access code via SMS shortly!");
   } catch (error) {
-    console.error("?? Verification error:", error.message);
-    return res.status(500).send("?? Server error verifying payment.");
+    console.error("? Verification error:", error.message);
+    return res.status(500).send("? Server error verifying payment.");
   }
 });
 
@@ -209,10 +208,11 @@ app.post('/api/use-access-code', (req, res) => {
   return res.status(200).json({ success: true, message: 'Access granted.', usageCount: codeEntry.usageCount });
 });
 
+// HOME ROUTE
 app.get('/', (req, res) => {
   res.send('? TickQuiz Backend is running.');
 });
 
 app.listen(PORT, () => {
-  console.log(`? Server running on port ${PORT}`);
+  console.log(`?? Server running on port ${PORT}`);
 });
