@@ -40,7 +40,7 @@ function generateAccessCode(length = 8) {
   return code;
 }
 
-// ? INITIATE PAYMENT
+// ? INITIATE PAYMENT — updated to 15.5 GHS
 app.post('/api/initiate-payment', async (req, res) => {
   const { name, email, phone } = req.body;
 
@@ -48,7 +48,7 @@ app.post('/api/initiate-payment', async (req, res) => {
     return res.status(400).json({ message: 'Name, email, and phone are required for payment.' });
   }
 
-  const amountKobo = 2000;
+  const amountKobo = 1550; // ? Updated from 2000 to 1550 for 15.5 GHS
 
   try {
     const response = await fetch("https://api.paystack.co/transaction/initialize", {
@@ -60,7 +60,7 @@ app.post('/api/initiate-payment', async (req, res) => {
       body: JSON.stringify({
         email,
         amount: amountKobo,
-        callback_url: "https://tickquiz.com/verify", // ? Correct frontend route
+        callback_url: "https://tickquiz.com/verify",
         metadata: { name, phone },
       }),
     });
@@ -81,7 +81,7 @@ app.post('/api/initiate-payment', async (req, res) => {
   }
 });
 
-// ? VERIFY PAYMENT
+// VERIFY PAYMENT
 app.post('/api/verify-payment', async (req, res) => {
   const { reference } = req.body;
 
@@ -151,14 +151,14 @@ app.post('/api/verify-payment', async (req, res) => {
   }
 });
 
-// ? OPTIONAL: Redirect GET /verify-payment to frontend
+// REDIRECT VERIFY GET
 app.get('/verify-payment', (req, res) => {
   const { reference } = req.query;
   if (!reference) return res.redirect('https://tickquiz.com/');
   return res.redirect(`https://tickquiz.com/verify?reference=${reference}`);
 });
 
-// ? USE ACCESS CODE
+// USE ACCESS CODE
 app.post('/api/use-access-code', (req, res) => {
   const { code } = req.body;
   if (!code) return res.status(400).json({ success: false, message: 'Access code is required.' });
@@ -185,7 +185,7 @@ app.post('/api/use-access-code', (req, res) => {
   return res.status(200).json({ success: true, message: 'Access granted.', usageCount: codeEntry.usageCount });
 });
 
-// ? HOME
+// HOME
 app.get('/', (req, res) => {
   res.send('? TickQuiz Backend is running.');
 });
