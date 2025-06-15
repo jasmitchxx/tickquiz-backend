@@ -1,4 +1,4 @@
-require('dotenv').config(); // Load environment variables
+require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser');
@@ -31,6 +31,10 @@ app.use(cors(corsOptions));
 app.options('*', cors(corsOptions));
 app.use(bodyParser.json());
 
+// Import leaderboard & result routes
+const leaderboardRoutes = require('./leaderboard');
+const resultRoutes = require('./results');
+
 function generateAccessCode(length = 8) {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   let code = '';
@@ -40,7 +44,7 @@ function generateAccessCode(length = 8) {
   return code;
 }
 
-// ? INITIATE PAYMENT — updated to 15.5 GHS
+// ? INITIATE PAYMENT
 app.post('/api/initiate-payment', async (req, res) => {
   const { name, email, phone } = req.body;
 
@@ -48,7 +52,7 @@ app.post('/api/initiate-payment', async (req, res) => {
     return res.status(400).json({ message: 'Name, email, and phone are required for payment.' });
   }
 
-  const amountKobo = 1550; // ? Updated from 2000 to 1550 for 15.5 GHS
+  const amountKobo = 1550;
 
   try {
     const response = await fetch("https://api.paystack.co/transaction/initialize", {
@@ -81,7 +85,7 @@ app.post('/api/initiate-payment', async (req, res) => {
   }
 });
 
-// VERIFY PAYMENT
+// ? VERIFY PAYMENT
 app.post('/api/verify-payment', async (req, res) => {
   const { reference } = req.body;
 
@@ -137,7 +141,7 @@ app.post('/api/verify-payment', async (req, res) => {
     fs.writeFileSync(filePath, JSON.stringify(accessCodes, null, 2));
 
     await client.messages.create({
-      body: `? Hello ${name}, your TickQuiz access code is: ${accessCode}`,
+      body: `?? Hello ${name}, your TickQuiz access code is: ${accessCode}`,
       from: twilioPhone,
       to: phone
     });
@@ -151,14 +155,14 @@ app.post('/api/verify-payment', async (req, res) => {
   }
 });
 
-// REDIRECT VERIFY GET
+// ? REDIRECT GET
 app.get('/verify-payment', (req, res) => {
   const { reference } = req.query;
   if (!reference) return res.redirect('https://tickquiz.com/');
   return res.redirect(`https://tickquiz.com/verify?reference=${reference}`);
 });
 
-// USE ACCESS CODE
+// ? USE ACCESS CODE
 app.post('/api/use-access-code', (req, res) => {
   const { code } = req.body;
   if (!code) return res.status(400).json({ success: false, message: 'Access code is required.' });
@@ -185,11 +189,16 @@ app.post('/api/use-access-code', (req, res) => {
   return res.status(200).json({ success: true, message: 'Access granted.', usageCount: codeEntry.usageCount });
 });
 
-// HOME
+// ? Leaderboard and Results APIs
+app.use('/api/leaderboard', leaderboardRoutes);
+app.use('/api/save-result', resultRoutes);
+
+// ? HOME
 app.get('/', (req, res) => {
   res.send('? TickQuiz Backend is running.');
 });
 
+// ? Start Server
 app.listen(PORT, () => {
   console.log(`?? Server running on port ${PORT}`);
 });
