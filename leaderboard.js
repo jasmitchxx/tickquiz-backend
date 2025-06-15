@@ -4,27 +4,32 @@ const path = require('path');
 
 const router = express.Router();
 
-// GET TOP SCORERS
+// GET TOP 10 PERFORMERS
 router.get('/', (req, res) => {
   const filePath = path.join(__dirname, 'results.json');
 
   if (!fs.existsSync(filePath)) {
-    return res.status(200).json([]); // Return empty array if no results yet
+    return res.status(200).json([]);
   }
 
   try {
     const data = fs.readFileSync(filePath, 'utf-8');
     const results = JSON.parse(data);
 
-    // Sort by score (descending), then limit to top 10
-    const topResults = results
-      .sort((a, b) => b.score - a.score)
-      .slice(0, 10);
+    // Sort results by highest score
+    const sortedResults = results.sort((a, b) => b.score - a.score);
 
-    res.status(200).json(topResults);
-  } catch (error) {
-    console.error('Error reading leaderboard:', error);
-    res.status(500).json({ message: 'Failed to load leaderboard.' });
+    // Get top 10
+    const top10 = sortedResults.slice(0, 10).map(({ name, school, score }) => ({
+      name,
+      school,
+      score,
+    }));
+
+    res.status(200).json(top10);
+  } catch (err) {
+    console.error('? Error reading leaderboard:', err);
+    res.status(500).json({ error: 'Failed to load leaderboard.' });
   }
 });
 
