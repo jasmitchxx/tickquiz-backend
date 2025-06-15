@@ -1,36 +1,63 @@
 const express = require('express');
 const fs = require('fs');
 const path = require('path');
-
 const router = express.Router();
 
-// GET TOP 10 PERFORMERS
+const LEADERBOARD_FILE = path.join(__dirname, 'leaderboard.json');
+
+// Load leaderboard from file
+function loadLeaderboard() {
+  if (!fs.existsSync(LEADERBOARD_FILE)) return [];
+  return JSON.parse(fs.readFileSync(LEADERBOARD_FILE, 'utf8'));
+}
+
+// Save leaderboard to file
+function saveLeaderboard(data) {
+  fs.writeFileSync(LEADERBOARD_FILE, JSON.stringify(data, null, 2));
+}
+
+// POST /api/leaderboard — Save new score with timestamp
+router.post('/', (req, res) => {
+  const { name, school, subject, score } = req.body;
+
+  if (!name || !school || !subject || typeof score !== 'number') {
+    return res.status(400).json({ message: 'Missing or invalid fields.' });
+  }
+
+  const leaderboard = loadLeaderboard();
+
+  leaderboard.push({
+    name,
+    school,
+    subject,
+    score,
+    timestamp: new Date().toISOString()
+  });
+
+  saveLeaderboard(leaderboard);
+
+  res.status(200).json({ message: 'Score saved successfully.' });
+});
+
+// GET /api/leaderboard?subject=English — Get top scores
 router.get('/', (req, res) => {
-  const filePath = path.join(__dirname, 'results.json');
+  const { subject } = req.query;
 
-  if (!fs.existsSync(filePath)) {
-    return res.status(200).json([]);
+  if (!subject) {
+    return res.status(400).json({ message: 'Subject is required.' });
   }
 
-  try {
-    const data = fs.readFileSync(filePath, 'utf-8');
-    const results = JSON.parse(data);
+  const leaderboard = loadLeaderboard();
 
-    // Sort results by highest score
-    const sortedResults = results.sort((a, b) => b.score - a.score);
+  const filtered = leaderboard
+    .filter(entry => entry.subject.toLowerCase() === subject.toLowerCase())
+    .sort((a, b) => {
+      if (b.score !== a.score) return b.score - a.score; // High score first
+      return new Date(a.timestamp) - new Date(b.timestamp); // Earlier wins tie
+    })
+    .slice(0, 50); // Top 50
 
-    // Get top 10
-    const top10 = sortedResults.slice(0, 10).map(({ name, school, score }) => ({
-      name,
-      school,
-      score,
-    }));
-
-    res.status(200).json(top10);
-  } catch (err) {
-    console.error('? Error reading leaderboard:', err);
-    res.status(500).json({ error: 'Failed to load leaderboard.' });
-  }
+  res.status(200).json(filtered);
 });
 
 module.exports = router;
