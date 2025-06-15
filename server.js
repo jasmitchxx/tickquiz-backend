@@ -52,7 +52,7 @@ app.post('/api/initiate-payment', async (req, res) => {
     return res.status(400).json({ message: 'Name, email, and phone are required for payment.' });
   }
 
-  const amountKobo = 1550;
+  const amountKobo = 1000; // ?10.00 (reduced from 1550)
 
   try {
     const response = await fetch("https://api.paystack.co/transaction/initialize", {
@@ -195,7 +195,7 @@ app.use('/api/save-result', resultRoutes);
 
 // ? HOME
 app.get('/', (req, res) => {
-  res.send('? TickQuiz Backend is running.');
+  res.send('?? TickQuiz Backend is running.');
 });
 
 // ? Start Server
