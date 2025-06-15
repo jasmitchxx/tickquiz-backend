@@ -1,10 +1,12 @@
+// results.js
 const express = require('express');
 const fs = require('fs');
 const path = require('path');
 
 const router = express.Router();
+const filePath = path.join(__dirname, 'results.json');
 
-// SAVE QUIZ RESULT
+// POST /api/save-result
 router.post('/', (req, res) => {
   const { name, school, score, subject } = req.body;
 
@@ -12,7 +14,6 @@ router.post('/', (req, res) => {
     return res.status(400).json({ success: false, message: 'Missing or invalid result data.' });
   }
 
-  const filePath = path.join(__dirname, 'results.json');
   let results = [];
 
   try {
@@ -30,7 +31,6 @@ router.post('/', (req, res) => {
     };
 
     results.push(newResult);
-
     fs.writeFileSync(filePath, JSON.stringify(results, null, 2));
 
     res.status(200).json({ success: true, message: 'Result saved successfully.' });

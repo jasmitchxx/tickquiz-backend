@@ -31,9 +31,9 @@ app.use(cors(corsOptions));
 app.options('*', cors(corsOptions));
 app.use(bodyParser.json());
 
-// Import leaderboard & result routes
-const leaderboardRoutes = require('./leaderboard');
-const resultRoutes = require('./results');
+// ? Import updated routes
+const leaderboardRoutes = require('./leaderboard'); // GET /api/leaderboard
+const resultRoutes = require('./results'); // POST /api/save-result
 
 function generateAccessCode(length = 8) {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -52,7 +52,7 @@ app.post('/api/initiate-payment', async (req, res) => {
     return res.status(400).json({ message: 'Name, email, and phone are required for payment.' });
   }
 
-  const amountKobo = 1000; // ?10.00 (reduced from 1550)
+  const amountKobo = 1000;
 
   try {
     const response = await fetch("https://api.paystack.co/transaction/initialize", {
@@ -189,13 +189,13 @@ app.post('/api/use-access-code', (req, res) => {
   return res.status(200).json({ success: true, message: 'Access granted.', usageCount: codeEntry.usageCount });
 });
 
-// ? Leaderboard and Results APIs
-app.use('/api/leaderboard', leaderboardRoutes);
-app.use('/api/save-result', resultRoutes);
+// ? Hook up updated routes
+app.use('/api/leaderboard', leaderboardRoutes); // GET leaderboard
+app.use('/api/save-result', resultRoutes); // POST results
 
 // ? HOME
 app.get('/', (req, res) => {
-  res.send('?? TickQuiz Backend is running.');
+  res.send('? TickQuiz Backend is running.');
 });
 
 // ? Start Server
