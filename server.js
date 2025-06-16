@@ -35,13 +35,13 @@ app.use(cors(corsOptions));
 app.options('*', cors(corsOptions));
 app.use(bodyParser.json());
 
-// Connect to MongoDB
+// MongoDB
 mongoose
   .connect(MONGODB_URI)
   .then(() => console.log('? Connected to MongoDB Atlas'))
   .catch((err) => console.error('? MongoDB connection failed:', err));
 
-// Helper
+// Helper: Generate Access Code
 function generateAccessCode(length = 8) {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   let code = '';
@@ -54,7 +54,6 @@ function generateAccessCode(length = 8) {
 // INITIATE PAYMENT
 app.post('/api/initiate-payment', async (req, res) => {
   const { name, email, phone } = req.body;
-
   if (!name || !email || !phone) {
     return res.status(400).json({ message: 'Name, email, and phone are required for payment.' });
   }
@@ -128,12 +127,12 @@ app.post('/api/verify-payment', async (req, res) => {
     await codeData.save();
 
     await client.messages.create({
-      body: `? Hello ${name}, your TickQuiz access code is: ${accessCode}`,
+      body: `?? Hello ${name}, your TickQuiz access code is: ${accessCode}`,
       from: twilioPhone,
       to: phone,
     });
 
-    console.log(`? Payment verified & code sent to ${phone}: ${accessCode}`);
+    console.log(`? Code sent to ${phone}: ${accessCode}`);
     res.status(200).json({ success: true, message: 'Payment verified. Access code sent!', accessCode, phone });
   } catch (error) {
     console.error('? Verification error:', error.message);
@@ -141,7 +140,7 @@ app.post('/api/verify-payment', async (req, res) => {
   }
 });
 
-// REDIRECT TO VERIFY
+// REDIRECT VERIFY
 app.get('/verify-payment', (req, res) => {
   const { reference } = req.query;
   if (!reference) return res.redirect('https://tickquiz.com/');
@@ -165,10 +164,22 @@ app.post('/api/use-access-code', async (req, res) => {
   return res.status(200).json({ success: true, message: 'Access granted.', usageCount: codeEntry.usageCount });
 });
 
-// SAVE RESULT
+// SAVE RESULT ? Updated
 app.post('/api/save-result', async (req, res) => {
   try {
-    const result = new Result(req.body);
+    const { name, school, score, subject } = req.body;
+
+    if (!name || !school || score == null || !subject) {
+      return res.status(400).json({ success: false, message: 'All fields (name, school, score, subject) are required.' });
+    }
+
+    const result = new Result({
+      name,
+      school,
+      score,
+      subject: subject.toLowerCase(),
+    });
+
     await result.save();
     res.status(200).json({ success: true, message: 'Result saved successfully.' });
   } catch (error) {
@@ -177,10 +188,21 @@ app.post('/api/save-result', async (req, res) => {
   }
 });
 
-// LEADERBOARD
+// LEADERBOARD ? Updated
 app.get('/api/leaderboard', async (req, res) => {
   try {
-    const results = await Result.find().sort({ score: -1, submittedAt: 1 }).limit(10);
+    const { subject } = req.query;
+    const allowedSubjects = ['math', 'english', 'science', 'socialstudies'];
+
+    if (subject && !allowedSubjects.includes(subject.toLowerCase())) {
+      return res.status(400).json({ success: false, message: 'Invalid subject.' });
+    }
+
+    const filter = subject ? { subject: subject.toLowerCase() } : {};
+    const results = await Result.find(filter)
+      .sort({ score: -1, submittedAt: 1 })
+      .limit(10);
+
     res.status(200).json(results);
   } catch (error) {
     console.error('? Error fetching leaderboard:', error.message);
