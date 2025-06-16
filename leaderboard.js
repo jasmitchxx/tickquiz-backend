@@ -1,31 +1,17 @@
-// leaderboard.js
 const express = require('express');
-const fs = require('fs');
-const path = require('path');
-
 const router = express.Router();
-const filePath = path.join(__dirname, 'results.json');
+const Result = require('./models/Result'); // Ensure the path is correct
 
 // GET /api/leaderboard
-router.get('/', (req, res) => {
-  if (!fs.existsSync(filePath)) {
-    return res.status(404).json({ success: false, message: 'No results found.' });
-  }
-
+router.get('/', async (req, res) => {
   try {
-    const data = fs.readFileSync(filePath);
-    const results = JSON.parse(data);
+    const topResults = await Result.find()
+      .sort({ score: -1, submittedAt: 1 }) // Highest score first, earliest submitted first on tie
+      .limit(10); // Only top 10 entries
 
-    const sorted = results
-      .sort((a, b) => {
-        if (b.score !== a.score) return b.score - a.score;
-        return new Date(a.submittedAt) - new Date(b.submittedAt);
-      })
-      .slice(0, 10);
-
-    res.status(200).json(sorted);
+    res.status(200).json(topResults);
   } catch (error) {
-    console.error('? Error loading leaderboard:', error);
+    console.error('? Error fetching leaderboard from MongoDB:', error);
     res.status(500).json({ success: false, message: 'Failed to load leaderboard.' });
   }
 });
