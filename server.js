@@ -54,6 +54,7 @@ function generateAccessCode(length = 8) {
 // INITIATE PAYMENT
 app.post('/api/initiate-payment', async (req, res) => {
   const { name, email, phone } = req.body;
+
   if (!name || !email || !phone) {
     return res.status(400).json({ message: 'Name, email, and phone are required for payment.' });
   }
@@ -74,7 +75,10 @@ app.post('/api/initiate-payment', async (req, res) => {
     });
 
     const data = await response.json();
-    if (!data.status) return res.status(400).json({ message: 'Failed to initiate payment.' });
+
+    if (!data.status) {
+      return res.status(400).json({ message: 'Failed to initiate payment.' });
+    }
 
     res.json({
       authorization_url: data.data.authorization_url,
@@ -89,7 +93,10 @@ app.post('/api/initiate-payment', async (req, res) => {
 // VERIFY PAYMENT
 app.post('/api/verify-payment', async (req, res) => {
   const { reference } = req.body;
-  if (!reference) return res.status(400).json({ success: false, message: 'Reference is required.' });
+
+  if (!reference) {
+    return res.status(400).json({ success: false, message: 'Reference is required.' });
+  }
 
   try {
     const verifyRes = await fetch(`https://api.paystack.co/transaction/verify/${reference}`, {
@@ -101,6 +108,7 @@ app.post('/api/verify-payment', async (req, res) => {
     });
 
     const verifyData = await verifyRes.json();
+
     if (!verifyData.status || verifyData.data.status !== 'success') {
       return res.status(400).json({ success: false, message: 'Payment not successful.' });
     }
@@ -133,6 +141,7 @@ app.post('/api/verify-payment', async (req, res) => {
     });
 
     console.log(`? Code sent to ${phone}: ${accessCode}`);
+
     res.status(200).json({ success: true, message: 'Payment verified. Access code sent!', accessCode, phone });
   } catch (error) {
     console.error('? Verification error:', error.message);
@@ -150,10 +159,17 @@ app.get('/verify-payment', (req, res) => {
 // USE ACCESS CODE
 app.post('/api/use-access-code', async (req, res) => {
   const { code } = req.body;
-  if (!code) return res.status(400).json({ success: false, message: 'Access code is required.' });
+
+  if (!code) {
+    return res.status(400).json({ success: false, message: 'Access code is required.' });
+  }
 
   const codeEntry = await AccessCode.findOne({ code });
-  if (!codeEntry) return res.status(404).json({ success: false, message: 'Invalid access code.' });
+
+  if (!codeEntry) {
+    return res.status(404).json({ success: false, message: 'Invalid access code.' });
+  }
+
   if (codeEntry.usageCount >= codeEntry.maxUsage) {
     return res.status(403).json({ success: false, message: 'Access code has expired.' });
   }
@@ -192,7 +208,14 @@ app.post('/api/save-result', async (req, res) => {
 app.get('/api/leaderboard', async (req, res) => {
   try {
     const { subject } = req.query;
+    const allowedSubjects = ['math', 'english', 'science', 'socialstudies'];
+
+    if (subject && !allowedSubjects.includes(subject.toLowerCase())) {
+      return res.status(400).json({ success: false, message: 'Invalid subject.' });
+    }
+
     const filter = subject ? { subject: subject.toLowerCase() } : {};
+
     const results = await Result.find(filter)
       .sort({ score: -1, submittedAt: 1 })
       .limit(10);
