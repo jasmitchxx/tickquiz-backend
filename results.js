@@ -1,21 +1,26 @@
 const express = require('express');
 const router = express.Router();
-const Result = require('./models/Result'); // Ensure the model path is correct
+const Result = require('./models/Result'); // Ensure this model has name, school, score, subject, code, submittedAt
 
 // POST /api/save-result
 router.post('/', async (req, res) => {
-  const { name, school, score } = req.body;
+  const { name, school, subject, score, code, timestamp } = req.body;
 
-  if (!name || !school || score === undefined) {
-    return res.status(400).json({ success: false, message: 'Name, school, and score are required.' });
+  if (!name || !school || !subject || !code || score === undefined || !timestamp) {
+    return res.status(400).json({
+      success: false,
+      message: 'Missing required fields: name, school, subject, score, code, or timestamp.',
+    });
   }
 
   try {
     const newResult = new Result({
       name,
       school,
+      subject,
       score,
-      submittedAt: new Date(),
+      code,
+      submittedAt: new Date(timestamp),
     });
 
     await newResult.save();
