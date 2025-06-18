@@ -164,7 +164,7 @@ app.post('/api/use-access-code', async (req, res) => {
   return res.status(200).json({ success: true, message: 'Access granted.', usageCount: codeEntry.usageCount });
 });
 
-// SAVE RESULT ? Updated
+// SAVE RESULT
 app.post('/api/save-result', async (req, res) => {
   try {
     const { name, school, score, subject } = req.body;
@@ -188,16 +188,10 @@ app.post('/api/save-result', async (req, res) => {
   }
 });
 
-// LEADERBOARD ? Updated
+// LEADERBOARD
 app.get('/api/leaderboard', async (req, res) => {
   try {
     const { subject } = req.query;
-    const allowedSubjects = ['math', 'english', 'science', 'socialstudies'];
-
-    if (subject && !allowedSubjects.includes(subject.toLowerCase())) {
-      return res.status(400).json({ success: false, message: 'Invalid subject.' });
-    }
-
     const filter = subject ? { subject: subject.toLowerCase() } : {};
     const results = await Result.find(filter)
       .sort({ score: -1, submittedAt: 1 })
