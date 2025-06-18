@@ -1,18 +1,25 @@
 const express = require('express');
 const router = express.Router();
-const Result = require('./models/Result'); // Ensure the path is correct
+const Result = require('./models/Result');
 
-// GET /api/leaderboard
+// GET /api/leaderboard?subject=Physics
 router.get('/', async (req, res) => {
-  try {
-    const topResults = await Result.find()
-      .sort({ score: -1, submittedAt: 1 }) // Highest score first, earliest submitted first on tie
-      .limit(10); // Only top 10 entries
+  const { subject } = req.query;
 
-    res.status(200).json(topResults);
+  if (!subject) {
+    return res.status(400).json({ success: false, message: 'Subject is required in query.' });
+  }
+
+  try {
+    // Case-insensitive match for subject
+    const results = await Result.find({ subject: new RegExp(`^${subject}$`, 'i') })
+      .sort({ score: -1, submittedAt: -1 }) // highest score, then most recent
+      .limit(50);
+
+    res.json({ success: true, results });
   } catch (error) {
-    console.error('? Error fetching leaderboard from MongoDB:', error);
-    res.status(500).json({ success: false, message: 'Failed to load leaderboard.' });
+    console.error('? Error fetching leaderboard:', error);
+    res.status(500).json({ success: false, message: 'Server error fetching leaderboard.' });
   }
 });
 
