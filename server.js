@@ -1,4 +1,3 @@
-// server.js
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
@@ -35,10 +34,29 @@ app.use(cors(corsOptions));
 app.options('*', cors(corsOptions));
 app.use(bodyParser.json());
 
+// Connect to MongoDB
 mongoose
   .connect(MONGODB_URI)
   .then(() => console.log('? Connected to MongoDB Atlas'))
   .catch((err) => console.error('? MongoDB connection failed:', err));
+
+// Allowed Subjects
+const allowedSubjects = [
+  "Physics",
+  "Chemistry",
+  "Add Maths",
+  "Biology",
+  "Core Maths",
+  "Core Science",
+  "Economics",
+  "Geography",
+  "Electiveict",
+  "English",
+  "Socialstudies",
+  "Accounting",
+  "Cost Accounting",
+  "Business Management"
+];
 
 // Generate Access Code
 function generateAccessCode(length = 8) {
@@ -179,7 +197,7 @@ app.post('/api/use-access-code', async (req, res) => {
   return res.status(200).json({ success: true, message: 'Access granted.', usageCount: codeEntry.usageCount });
 });
 
-// Save Quiz Result
+// ? Save Quiz Result (Updated with safe score casting)
 app.post('/api/save-result', async (req, res) => {
   try {
     const { name, school, score, subject } = req.body;
@@ -188,26 +206,51 @@ app.post('/api/save-result', async (req, res) => {
       return res.status(400).json({ success: false, message: 'All fields (name, school, score, subject) are required.' });
     }
 
+    const numericScore = Number(score);
+    if (isNaN(numericScore)) {
+      return res.status(400).json({ success: false, message: 'Score must be a valid number.' });
+    }
+
+    const normalizedSubjects = allowedSubjects.map((s) => s.toLowerCase());
+    if (!normalizedSubjects.includes(subject.toLowerCase())) {
+      return res.status(400).json({ success: false, message: 'Invalid subject submitted.' });
+    }
+
+    const properSubject = allowedSubjects.find(
+      (s) => s.toLowerCase() === subject.toLowerCase()
+    );
+
     const result = new Result({
       name,
       school,
-      score,
-      subject: subject.toLowerCase(),
+      score: numericScore,
+      subject: properSubject,
     });
 
     await result.save();
     res.status(200).json({ success: true, message: 'Result saved successfully.' });
   } catch (error) {
-    console.error('? Error saving result:', error.message);
+    console.error('? Error saving result:', {
+      error: error.message,
+      fields: req.body,
+    });
+
     res.status(500).json({ success: false, message: 'Failed to save result.' });
   }
 });
 
-// Updated Leaderboard
+// Leaderboard
 app.get('/api/leaderboard', async (req, res) => {
   try {
     const { subject } = req.query;
-    const filter = subject ? { subject: subject.toLowerCase() } : {};
+
+    if (subject && !allowedSubjects.map(s => s.toLowerCase()).includes(subject.toLowerCase())) {
+      return res.status(400).json({ success: false, message: 'Invalid subject.' });
+    }
+
+    const filter = subject
+      ? { subject: allowedSubjects.find(s => s.toLowerCase() === subject.toLowerCase()) }
+      : {};
 
     const results = await Result.find(filter)
       .sort({ score: -1, submittedAt: 1 })
@@ -222,7 +265,7 @@ app.get('/api/leaderboard', async (req, res) => {
 
 // Home
 app.get('/', (req, res) => {
-  res.send('? TickQuiz Backend is running.');
+  res.send('?? TickQuiz Backend is running.');
 });
 
 // Start Server
