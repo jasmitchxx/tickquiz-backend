@@ -1,3 +1,4 @@
+// server.js
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
@@ -19,7 +20,6 @@ const PORT = process.env.PORT || 5000;
 const client = twilio(accountSid, authToken);
 const app = express();
 
-// CORS
 const corsOptions = {
   origin: [
     'https://tickquiz.com',
@@ -35,13 +35,12 @@ app.use(cors(corsOptions));
 app.options('*', cors(corsOptions));
 app.use(bodyParser.json());
 
-// MongoDB
 mongoose
   .connect(MONGODB_URI)
   .then(() => console.log('? Connected to MongoDB Atlas'))
   .catch((err) => console.error('? MongoDB connection failed:', err));
 
-// Helper: Generate Access Code
+// Generate Access Code
 function generateAccessCode(length = 8) {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   let code = '';
@@ -51,7 +50,7 @@ function generateAccessCode(length = 8) {
   return code;
 }
 
-// INITIATE PAYMENT
+// Initiate Payment
 app.post('/api/initiate-payment', async (req, res) => {
   const { name, email, phone } = req.body;
 
@@ -90,7 +89,7 @@ app.post('/api/initiate-payment', async (req, res) => {
   }
 });
 
-// VERIFY PAYMENT
+// Verify Payment
 app.post('/api/verify-payment', async (req, res) => {
   const { reference } = req.body;
 
@@ -140,7 +139,7 @@ app.post('/api/verify-payment', async (req, res) => {
       to: phone,
     });
 
-    console.log(`? Code sent to ${phone}: ${accessCode}`);
+    console.log(`?? Code sent to ${phone}: ${accessCode}`);
 
     res.status(200).json({ success: true, message: 'Payment verified. Access code sent!', accessCode, phone });
   } catch (error) {
@@ -149,14 +148,14 @@ app.post('/api/verify-payment', async (req, res) => {
   }
 });
 
-// REDIRECT VERIFY
+// Redirect after payment
 app.get('/verify-payment', (req, res) => {
   const { reference } = req.query;
   if (!reference) return res.redirect('https://tickquiz.com/');
   return res.redirect(`https://tickquiz.com/verify?reference=${reference}`);
 });
 
-// USE ACCESS CODE
+// Use Access Code
 app.post('/api/use-access-code', async (req, res) => {
   const { code } = req.body;
 
@@ -180,7 +179,7 @@ app.post('/api/use-access-code', async (req, res) => {
   return res.status(200).json({ success: true, message: 'Access granted.', usageCount: codeEntry.usageCount });
 });
 
-// SAVE RESULT
+// Save Quiz Result
 app.post('/api/save-result', async (req, res) => {
   try {
     const { name, school, score, subject } = req.body;
@@ -204,35 +203,29 @@ app.post('/api/save-result', async (req, res) => {
   }
 });
 
-// LEADERBOARD
+// Updated Leaderboard
 app.get('/api/leaderboard', async (req, res) => {
   try {
     const { subject } = req.query;
-    const allowedSubjects = ['math', 'english', 'science', 'socialstudies'];
-
-    if (subject && !allowedSubjects.includes(subject.toLowerCase())) {
-      return res.status(400).json({ success: false, message: 'Invalid subject.' });
-    }
-
     const filter = subject ? { subject: subject.toLowerCase() } : {};
 
     const results = await Result.find(filter)
       .sort({ score: -1, submittedAt: 1 })
       .limit(10);
 
-    res.status(200).json(results);
+    res.status(200).json({ success: true, results });
   } catch (error) {
     console.error('? Error fetching leaderboard:', error.message);
     res.status(500).json({ success: false, message: 'Failed to load leaderboard.' });
   }
 });
 
-// HOME
+// Home
 app.get('/', (req, res) => {
   res.send('? TickQuiz Backend is running.');
 });
 
-// START SERVER
+// Start Server
 app.listen(PORT, () => {
   console.log(`?? Server running on port ${PORT}`);
 });
