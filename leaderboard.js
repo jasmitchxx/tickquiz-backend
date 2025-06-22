@@ -19,10 +19,11 @@ router.get('/', async (req, res) => {
       .sort({ score: -1, submittedAt: -1 })
       .limit(50);
 
-    res.json(results); // Frontend expects just an array
+    // ? Wrapped response for frontend compatibility
+    return res.status(200).json({ success: true, results });
   } catch (error) {
     console.error('? Error fetching leaderboard:', error);
-    res.status(500).json({ success: false, message: 'Server error fetching leaderboard.' });
+    return res.status(500).json({ success: false, message: 'Server error fetching leaderboard.' });
   }
 });
 
@@ -72,10 +73,10 @@ router.delete('/', async (req, res) => {
     const safeSubject = new RegExp(`^${escapeRegex(subject)}$`, 'i');
     const result = await Result.deleteMany({ subject: safeSubject });
 
-    res.json({ success: true, message: 'Leaderboard reset.', deletedCount: result.deletedCount });
+    return res.json({ success: true, message: 'Leaderboard reset.', deletedCount: result.deletedCount });
   } catch (err) {
     console.error('? Error resetting leaderboard:', err);
-    res.status(500).json({ success: false, message: 'Server error during leaderboard reset.' });
+    return res.status(500).json({ success: false, message: 'Server error during leaderboard reset.' });
   }
 });
 

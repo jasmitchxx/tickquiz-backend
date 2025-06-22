@@ -240,7 +240,8 @@ app.post('/api/save-result', async (req, res) => {
 });
 
 // Leaderboard
-app.get('/api/leaderboard', async (req, res) => {
+const leaderboardRouter = require('./leaderboard');
+app.use('/api/leaderboard', leaderboardRouter);
   try {
     const { subject } = req.query;
 
