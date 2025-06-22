@@ -4,6 +4,7 @@ const resultSchema = new mongoose.Schema({
   name: { type: String, required: true },
   school: { type: String, required: true },
   score: { type: Number, required: true },
+  total: { type: Number, default: 60 }, // ? Used to normalize percentage
   subject: {
     type: String,
     required: true,
@@ -22,7 +23,7 @@ const resultSchema = new mongoose.Schema({
       "Accounting",
       "Cost Accounting",
       "Business Management"
-    ]
+    ],
   },
   code: {
     type: String,
@@ -34,5 +35,5 @@ const resultSchema = new mongoose.Schema({
   },
 });
 
-// ? Export the model so it can be used in your server
+// ? Export the model
 module.exports = mongoose.model('Result', resultSchema);

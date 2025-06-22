@@ -15,11 +15,24 @@ router.get('/', async (req, res) => {
 
   try {
     const safeSubject = new RegExp(`^${escapeRegex(subject)}$`, 'i');
-    const results = await Result.find({ subject: safeSubject })
+    const resultsRaw = await Result.find({ subject: safeSubject })
       .sort({ score: -1, submittedAt: -1 })
-      .limit(10); // ?? Limit to top 10
+      .limit(10);
 
-    // Respond with { success, results } format
+    // Normalize and return score percentage for frontend
+    const results = resultsRaw.map((r) => {
+      const total = r.total || 60;
+      const percentage = ((r.score / total) * 100).toFixed(2);
+      return {
+        name: r.name,
+        school: r.school,
+        score: r.score,
+        total,
+        percentage: Number(percentage),
+        subject: r.subject,
+      };
+    });
+
     return res.status(200).json({ success: true, results });
   } catch (error) {
     console.error('? Error fetching leaderboard:', error);
@@ -30,7 +43,7 @@ router.get('/', async (req, res) => {
 // POST /api/leaderboard — Save quiz result
 router.post('/', async (req, res) => {
   try {
-    const { name, school, score, subject } = req.body;
+    const { name, school, score, subject, total, code } = req.body;
 
     if (!name || !subject || typeof score !== 'number') {
       return res.status(400).json({ success: false, message: 'Name, score, and subject are required.' });
@@ -41,6 +54,8 @@ router.post('/', async (req, res) => {
       school: school?.trim() || 'Unknown',
       subject: subject.trim(),
       score,
+      total: total || 60, // fallback to 60 if not provided
+      code: code || null,
       submittedAt: new Date(),
     });
 
