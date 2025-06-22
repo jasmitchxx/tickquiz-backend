@@ -42,20 +42,9 @@ mongoose
 
 // Allowed Subjects
 const allowedSubjects = [
-  "Physics",
-  "Chemistry",
-  "Add Maths",
-  "Biology",
-  "Core Maths",
-  "Core Science",
-  "Economics",
-  "Geography",
-  "Electiveict",
-  "English",
-  "Socialstudies",
-  "Accounting",
-  "Cost Accounting",
-  "Business Management"
+  "Physics", "Chemistry", "Add Maths", "Biology", "Core Maths", "Core Science",
+  "Economics", "Geography", "Electiveict", "English", "Socialstudies",
+  "Accounting", "Cost Accounting", "Business Management"
 ];
 
 // Generate Access Code
@@ -157,7 +146,7 @@ app.post('/api/verify-payment', async (req, res) => {
       to: phone,
     });
 
-    console.log(`?? Code sent to ${phone}: ${accessCode}`);
+    console.log(`? Code sent to ${phone}: ${accessCode}`);
 
     res.status(200).json({ success: true, message: 'Payment verified. Access code sent!', accessCode, phone });
   } catch (error) {
@@ -197,7 +186,7 @@ app.post('/api/use-access-code', async (req, res) => {
   return res.status(200).json({ success: true, message: 'Access granted.', usageCount: codeEntry.usageCount });
 });
 
-// ? Save Quiz Result (Updated with safe score casting)
+// Save Quiz Result
 app.post('/api/save-result', async (req, res) => {
   try {
     const { name, school, score, subject } = req.body;
@@ -239,37 +228,16 @@ app.post('/api/save-result', async (req, res) => {
   }
 });
 
-// Leaderboard
+// Mount leaderboard router
 const leaderboardRouter = require('./leaderboard');
 app.use('/api/leaderboard', leaderboardRouter);
-  try {
-    const { subject } = req.query;
 
-    if (subject && !allowedSubjects.map(s => s.toLowerCase()).includes(subject.toLowerCase())) {
-      return res.status(400).json({ success: false, message: 'Invalid subject.' });
-    }
-
-    const filter = subject
-      ? { subject: allowedSubjects.find(s => s.toLowerCase() === subject.toLowerCase()) }
-      : {};
-
-    const results = await Result.find(filter)
-      .sort({ score: -1, submittedAt: 1 })
-      .limit(10);
-
-    res.status(200).json({ success: true, results });
-  } catch (error) {
-    console.error('? Error fetching leaderboard:', error.message);
-    res.status(500).json({ success: false, message: 'Failed to load leaderboard.' });
-  }
-});
-
-// Home
+// Root route
 app.get('/', (req, res) => {
-  res.send('?? TickQuiz Backend is running.');
+  res.send('? TickQuiz Backend is running.');
 });
 
-// Start Server
+// Start server
 app.listen(PORT, () => {
   console.log(`?? Server running on port ${PORT}`);
 });

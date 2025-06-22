@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const Result = require('./models/Result');
 
-// Helper function to escape regex characters in subject
+// Escape regex characters in subject for safe querying
 const escapeRegex = (str) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 // GET /api/leaderboard?subject=Physics
@@ -17,9 +17,9 @@ router.get('/', async (req, res) => {
     const safeSubject = new RegExp(`^${escapeRegex(subject)}$`, 'i');
     const results = await Result.find({ subject: safeSubject })
       .sort({ score: -1, submittedAt: -1 })
-      .limit(50);
+      .limit(10); // ?? Limit to top 10
 
-    // ? Wrapped response for frontend compatibility
+    // Respond with { success, results } format
     return res.status(200).json({ success: true, results });
   } catch (error) {
     console.error('? Error fetching leaderboard:', error);
@@ -27,36 +27,33 @@ router.get('/', async (req, res) => {
   }
 });
 
-// ? POST /api/leaderboard — Save a user's result
+// POST /api/leaderboard — Save quiz result
 router.post('/', async (req, res) => {
   try {
     const { name, school, score, subject } = req.body;
 
-    // Validate input
-    if (!name || typeof score !== 'number' || !subject) {
-      return res.status(400).json({ success: false, message: 'Missing required fields.' });
+    if (!name || !subject || typeof score !== 'number') {
+      return res.status(400).json({ success: false, message: 'Name, score, and subject are required.' });
     }
 
-    const normalizedSubject = subject.toLowerCase().replace(/\s+/g, '');
-
-    const newResult = new Result({
-      name,
-      school: school || 'Unknown',
+    const result = new Result({
+      name: name.trim(),
+      school: school?.trim() || 'Unknown',
+      subject: subject.trim(),
       score,
-      subject: normalizedSubject,
       submittedAt: new Date(),
     });
 
-    await newResult.save();
-    res.json({ success: true, message: 'Result saved successfully.' });
+    await result.save();
 
+    return res.status(200).json({ success: true, message: 'Result saved successfully.' });
   } catch (error) {
     console.error('? Error saving result:', error);
-    res.status(500).json({ success: false, message: 'Error saving result.' });
+    return res.status(500).json({ success: false, message: 'Error saving result.' });
   }
 });
 
-// DELETE /api/leaderboard — Admin-only reset
+// DELETE /api/leaderboard — Admin reset
 router.delete('/', async (req, res) => {
   const { subject, secret } = req.body;
   const ADMIN_SECRET = process.env.ADMIN_SECRET;
@@ -73,9 +70,13 @@ router.delete('/', async (req, res) => {
     const safeSubject = new RegExp(`^${escapeRegex(subject)}$`, 'i');
     const result = await Result.deleteMany({ subject: safeSubject });
 
-    return res.json({ success: true, message: 'Leaderboard reset.', deletedCount: result.deletedCount });
-  } catch (err) {
-    console.error('? Error resetting leaderboard:', err);
+    return res.status(200).json({
+      success: true,
+      message: 'Leaderboard reset.',
+      deletedCount: result.deletedCount,
+    });
+  } catch (error) {
+    console.error('? Error resetting leaderboard:', error);
     return res.status(500).json({ success: false, message: 'Server error during leaderboard reset.' });
   }
 });
