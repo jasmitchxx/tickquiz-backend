@@ -8,6 +8,7 @@ const fetch = require('node-fetch');
 
 const Result = require('./models/Result');
 const AccessCode = require('./models/AccessCode');
+const leaderboardRouter = require('./leaderboard');
 
 const PAYSTACK_SECRET_KEY = process.env.PAYSTACK_SECRET_KEY;
 const accountSid = process.env.TWILIO_ACCOUNT_SID;
@@ -35,12 +36,11 @@ app.options('*', cors(corsOptions));
 app.use(bodyParser.json());
 
 // Connect to MongoDB
-mongoose
-  .connect(MONGODB_URI)
+mongoose.connect(MONGODB_URI)
   .then(() => console.log('? Connected to MongoDB Atlas'))
   .catch((err) => console.error('? MongoDB connection failed:', err));
 
-// Allowed Subjects
+// Allowed subjects
 const allowedSubjects = [
   "Physics", "Chemistry", "Add Maths", "Biology", "Core Maths", "Core Science",
   "Economics", "Geography", "Electiveict", "English", "Socialstudies",
@@ -141,12 +141,12 @@ app.post('/api/verify-payment', async (req, res) => {
     await codeData.save();
 
     await client.messages.create({
-      body: `?? Hello ${name}, your TickQuiz access code is: ${accessCode}`,
+      body: `? Hello ${name}, your TickQuiz access code is: ${accessCode}`,
       from: twilioPhone,
       to: phone,
     });
 
-    console.log(`? Code sent to ${phone}: ${accessCode}`);
+    console.log(`?? Code sent to ${phone}: ${accessCode}`);
 
     res.status(200).json({ success: true, message: 'Payment verified. Access code sent!', accessCode, phone });
   } catch (error) {
@@ -228,8 +228,7 @@ app.post('/api/save-result', async (req, res) => {
   }
 });
 
-// Mount leaderboard router
-const leaderboardRouter = require('./leaderboard');
+// Leaderboard route
 app.use('/api/leaderboard', leaderboardRouter);
 
 // Root route
