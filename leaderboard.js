@@ -26,7 +26,36 @@ router.get('/', async (req, res) => {
   }
 });
 
-// DELETE /api/leaderboard
+// ? POST /api/leaderboard — Save a user's result
+router.post('/', async (req, res) => {
+  try {
+    const { name, school, score, subject } = req.body;
+
+    // Validate input
+    if (!name || typeof score !== 'number' || !subject) {
+      return res.status(400).json({ success: false, message: 'Missing required fields.' });
+    }
+
+    const normalizedSubject = subject.toLowerCase().replace(/\s+/g, '');
+
+    const newResult = new Result({
+      name,
+      school: school || 'Unknown',
+      score,
+      subject: normalizedSubject,
+      submittedAt: new Date(),
+    });
+
+    await newResult.save();
+    res.json({ success: true, message: 'Result saved successfully.' });
+
+  } catch (error) {
+    console.error('? Error saving result:', error);
+    res.status(500).json({ success: false, message: 'Error saving result.' });
+  }
+});
+
+// DELETE /api/leaderboard — Admin-only reset
 router.delete('/', async (req, res) => {
   const { subject, secret } = req.body;
   const ADMIN_SECRET = process.env.ADMIN_SECRET;
