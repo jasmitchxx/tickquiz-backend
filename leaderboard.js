@@ -2,24 +2,42 @@ const express = require('express');
 const router = express.Router();
 const Result = require('./models/Result');
 
-// Escape regex characters in subject for safe querying
+// Utility to safely escape regex characters
 const escapeRegex = (str) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-// GET /api/leaderboard?subject=Physics
+// ? GET /api/leaderboard?subject=Physics&level=Easy&startDate=2025-07-01&endDate=2025-07-05
 router.get('/', async (req, res) => {
-  const { subject } = req.query;
+  const { subject, level, startDate, endDate } = req.query;
 
   if (!subject) {
     return res.status(400).json({ success: false, message: 'Subject is required in query.' });
   }
 
   try {
-    const safeSubject = new RegExp(`^${escapeRegex(subject)}$`, 'i');
-    const resultsRaw = await Result.find({ subject: safeSubject })
+    const filters = {
+      subject: new RegExp(`^${escapeRegex(subject)}$`, 'i'),
+    };
+
+    if (level) {
+      filters.level = new RegExp(`^${escapeRegex(level)}$`, 'i');
+    }
+
+    if (startDate || endDate) {
+      filters.submittedAt = {};
+      if (startDate) {
+        filters.submittedAt.$gte = new Date(startDate);
+      }
+      if (endDate) {
+        const end = new Date(endDate);
+        end.setHours(23, 59, 59, 999); // end of day
+        filters.submittedAt.$lte = end;
+      }
+    }
+
+    const resultsRaw = await Result.find(filters)
       .sort({ score: -1, submittedAt: -1 })
       .limit(10);
 
-    // Normalize and return score percentage for frontend
     const results = resultsRaw.map((r) => {
       const total = r.total || 60;
       const percentage = ((r.score / total) * 100).toFixed(2);
@@ -30,6 +48,9 @@ router.get('/', async (req, res) => {
         total,
         percentage: Number(percentage),
         subject: r.subject,
+        level: r.level || null,
+        code: r.code || null,
+        submittedAt: r.submittedAt,
       };
     });
 
@@ -40,10 +61,10 @@ router.get('/', async (req, res) => {
   }
 });
 
-// POST /api/leaderboard — Save quiz result
+// ? POST /api/leaderboard — Save quiz result
 router.post('/', async (req, res) => {
   try {
-    const { name, school, score, subject, total, code } = req.body;
+    const { name, school, score, subject, total, code, level } = req.body;
 
     if (!name || !subject || typeof score !== 'number') {
       return res.status(400).json({ success: false, message: 'Name, score, and subject are required.' });
@@ -53,8 +74,9 @@ router.post('/', async (req, res) => {
       name: name.trim(),
       school: school?.trim() || 'Unknown',
       subject: subject.trim(),
+      level: level?.trim() || null,
       score,
-      total: total || 60, // fallback to 60 if not provided
+      total: total || 60,
       code: code || null,
       submittedAt: new Date(),
     });
@@ -68,7 +90,7 @@ router.post('/', async (req, res) => {
   }
 });
 
-// DELETE /api/leaderboard — Admin reset
+// ? DELETE /api/leaderboard — Admin reset
 router.delete('/', async (req, res) => {
   const { subject, secret } = req.body;
   const ADMIN_SECRET = process.env.ADMIN_SECRET;
@@ -97,4 +119,3 @@ router.delete('/', async (req, res) => {
 });
 
 module.exports = router;
-
