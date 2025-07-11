@@ -10,13 +10,14 @@ const resultSchema = new mongoose.Schema({
     required: true,
     enum: [
       // SHS Subjects
-      "Physics", "Chemistry", "Add Maths", "Biology", "Core Maths",
-      "Core Science", "Economics", "Geography", "Electiveict",
-      "English", "Socialstudies", "Accounting", "Cost Accounting",
-      "Business Management",
+      "Physics", "Chemistry", "Biology", "CoreMaths", "AddMaths",
+    "English", "SocialStudies", "Geography", "Economics",
+    "ElectiveICT", "Accounting", "CostAccounting", "BusinessManagement"
+
       // JHS Subjects
-      "English Language", "Maths", "Social Studies", "Career Tech",
-      "Computing", "RME", "French", "Creative Arts and Design"
+      "EnglishLanguage", "Maths", "CoreScience", "SocialStudies",
+    "CareerTech", "Computing", "RME", "French", "CreativeArtsAndDesign"
+
     ],
   },
   level: {
