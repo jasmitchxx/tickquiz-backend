@@ -42,9 +42,13 @@ mongoose.connect(MONGODB_URI)
 
 // Allowed subjects
 const allowedSubjects = [
-  "Physics", "Chemistry", "Add Maths", "Biology", "Core Maths", "Core Science",
-  "Economics", "Geography", "Electiveict", "English", "Socialstudies",
-  "Accounting", "Cost Accounting", "Business Management"
+ // SHS Subjects
+"Physics", "Chemistry", "Biology", "CoreMaths", "AddMaths",
+      "English", "SocialStudies", "Geography", "Economics",
+      "ElectiveICT", "Accounting", "CostAccounting", "BusinessManagement",
+// JHS Subjects
+"EnglishLanguage", "Maths", "CoreScience", "SocialStudies",
+      "CareerTech", "Computing", "RME", "French", "CreativeArtsAndDesign"
 ];
 
 // Generate Access Code
