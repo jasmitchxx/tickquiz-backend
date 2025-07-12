@@ -11,19 +11,18 @@ const resultSchema = new mongoose.Schema({
     enum: [
       // SHS Subjects
       "Physics", "Chemistry", "Biology", "CoreMaths", "AddMaths",
-    "English", "SocialStudies", "Geography", "Economics",
-    "ElectiveICT", "Accounting", "CostAccounting", "BusinessManagement"
+      "English", "SocialStudies", "Geography", "Economics",
+      "ElectiveICT", "Accounting", "CostAccounting", "BusinessManagement",
 
       // JHS Subjects
       "EnglishLanguage", "Maths", "CoreScience", "SocialStudies",
-    "CareerTech", "Computing", "RME", "French", "CreativeArtsAndDesign"
-
+      "CareerTech", "Computing", "RME", "French", "CreativeArtsAndDesign"
     ],
   },
   level: {
     type: String,
     enum: ["SHS", "JHS"],
-    required: false,
+    required: true, // Made required
   },
   code: {
     type: String,
@@ -33,6 +32,6 @@ const resultSchema = new mongoose.Schema({
     type: Date,
     default: Date.now,
   },
-});
+}, { timestamps: true }); // Added this line
 
 module.exports = mongoose.model('Result', resultSchema);
