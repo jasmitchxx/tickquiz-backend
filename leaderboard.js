@@ -2,10 +2,49 @@ const express = require('express');
 const router = express.Router();
 const Result = require('./models/Result');
 
-// Utility to safely escape regex characters
+// Normalization map must match what's in models/Result.js
+const SUBJECT_MAP = {
+  physics: "Physics",
+  chemistry: "Chemistry",
+  biology: "Biology",
+  "coremaths": "Core Maths",
+  "addmaths": "Add Maths",
+  english: "English",
+  "socialstudies": "Social Studies",
+  geography: "Geography",
+  economics: "Economics",
+  electiveict: "Elective ICT",
+  accounting: "Accounting",
+  "costaccounting": "Cost Accounting",
+  "businessmanagement": "Business Management",
+
+  // JHS
+  "englishlanguage": "English Language",
+  maths: "Maths",
+  "corescience": "Core Science",
+  careertech: "Career Tech",
+  computing: "Computing",
+  rme: "RME",
+  french: "French",
+  "creativeartsanddesign": "Creative Arts and Design",
+  socialstudies: "Social Studies",
+};
+
+const normalizeSubject = (input) => {
+  if (!input) return null;
+  const key = input.toLowerCase().replace(/\s+/g, '');
+  return SUBJECT_MAP[key] || input.trim();
+};
+
+const normalizeLevel = (input) => {
+  if (!input) return null;
+  const normalized = input.toUpperCase();
+  return ['SHS', 'JHS'].includes(normalized) ? normalized : input.trim();
+};
+
 const escapeRegex = (str) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-// ? GET /api/leaderboard?subject=Physics&level=Easy&startDate=2025-07-01&endDate=2025-07-05
+// ? GET /api/leaderboard
 router.get('/', async (req, res) => {
   const { subject, level, startDate, endDate } = req.query;
 
@@ -15,21 +54,19 @@ router.get('/', async (req, res) => {
 
   try {
     const filters = {
-      subject: new RegExp(`^${escapeRegex(subject)}$`, 'i'),
+      subject: new RegExp(`^${escapeRegex(normalizeSubject(subject))}$`, 'i'),
     };
 
     if (level) {
-      filters.level = new RegExp(`^${escapeRegex(level)}$`, 'i');
+      filters.level = new RegExp(`^${escapeRegex(normalizeLevel(level))}$`, 'i');
     }
 
     if (startDate || endDate) {
       filters.submittedAt = {};
-      if (startDate) {
-        filters.submittedAt.$gte = new Date(startDate);
-      }
+      if (startDate) filters.submittedAt.$gte = new Date(startDate);
       if (endDate) {
         const end = new Date(endDate);
-        end.setHours(23, 59, 59, 999); // end of day
+        end.setHours(23, 59, 59, 999);
         filters.submittedAt.$lte = end;
       }
     }
@@ -61,7 +98,7 @@ router.get('/', async (req, res) => {
   }
 });
 
-// ? POST /api/leaderboard — Save quiz result
+// ? POST /api/leaderboard
 router.post('/', async (req, res) => {
   try {
     const { name, school, score, subject, total, code, level } = req.body;
@@ -73,8 +110,8 @@ router.post('/', async (req, res) => {
     const result = new Result({
       name: name.trim(),
       school: school?.trim() || 'Unknown',
-      subject: subject.trim(),
-      level: level?.trim() || null,
+      subject: normalizeSubject(subject),
+      level: normalizeLevel(level),
       score,
       total: total || 60,
       code: code || null,
@@ -85,12 +122,12 @@ router.post('/', async (req, res) => {
 
     return res.status(200).json({ success: true, message: 'Result saved successfully.' });
   } catch (error) {
-    console.error('? Error saving result:', error);
+    console.error('? Error saving result:', error.message);
     return res.status(500).json({ success: false, message: 'Error saving result.' });
   }
 });
 
-// ? DELETE /api/leaderboard — Admin reset
+// ? DELETE /api/leaderboard
 router.delete('/', async (req, res) => {
   const { subject, secret } = req.body;
   const ADMIN_SECRET = process.env.ADMIN_SECRET;
@@ -104,7 +141,7 @@ router.delete('/', async (req, res) => {
   }
 
   try {
-    const safeSubject = new RegExp(`^${escapeRegex(subject)}$`, 'i');
+    const safeSubject = new RegExp(`^${escapeRegex(normalizeSubject(subject))}$`, 'i');
     const result = await Result.deleteMany({ subject: safeSubject });
 
     return res.status(200).json({
