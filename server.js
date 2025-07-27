@@ -3,7 +3,6 @@ const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser');
 const mongoose = require('mongoose');
-const twilio = require('twilio');
 const fetch = require('node-fetch');
 
 const Result = require('./models/Result');
@@ -11,15 +10,12 @@ const AccessCode = require('./models/AccessCode');
 const leaderboardRouter = require('./leaderboard');
 
 const PAYSTACK_SECRET_KEY = process.env.PAYSTACK_SECRET_KEY;
-const accountSid = process.env.TWILIO_ACCOUNT_SID;
-const authToken = process.env.TWILIO_AUTH_TOKEN;
-const twilioPhone = process.env.TWILIO_PHONE_NUMBER;
 const MONGODB_URI = process.env.MONGODB_URI;
 const PORT = process.env.PORT || 5000;
 
-const client = twilio(accountSid, authToken);
 const app = express();
 
+// CORS configuration
 const corsOptions = {
   origin: [
     'https://tickquiz.com',
@@ -42,13 +38,13 @@ mongoose.connect(MONGODB_URI)
 
 // Allowed subjects
 const allowedSubjects = [
- // SHS Subjects
-"Physics", "Chemistry", "Biology", "CoreMaths", "AddMaths",
-      "English", "SocialStudies", "Geography", "Economics",
-      "ElectiveICT", "Accounting", "CostAccounting", "BusinessManagement",
-// JHS Subjects
-"EnglishLanguage", "Maths", "CoreScience", "SocialStudies",
-      "CareerTech", "Computing", "RME", "French", "CreativeArtsAndDesign"
+  // SHS
+  "Physics", "Chemistry", "Biology", "CoreMaths", "AddMaths",
+  "English", "SocialStudies", "Geography", "Economics",
+  "ElectiveICT", "Accounting", "CostAccounting", "BusinessManagement",
+  // JHS
+  "EnglishLanguage", "Maths", "CoreScience", "SocialStudies",
+  "CareerTech", "Computing", "RME", "French", "CreativeArtsAndDesign"
 ];
 
 // Generate Access Code
@@ -100,7 +96,7 @@ app.post('/api/initiate-payment', async (req, res) => {
   }
 });
 
-// Verify Payment
+// Verify Payment (without Twilio)
 app.post('/api/verify-payment', async (req, res) => {
   const { reference } = req.body;
 
@@ -144,15 +140,14 @@ app.post('/api/verify-payment', async (req, res) => {
 
     await codeData.save();
 
-    await client.messages.create({
-      body: `? Hello ${name}, your TickQuiz access code is: ${accessCode}`,
-      from: twilioPhone,
-      to: phone,
+    console.log(`? Access code generated: ${accessCode} for ${phone}`);
+
+    res.status(200).json({
+      success: true,
+      message: 'Payment verified. Access code generated!',
+      accessCode,
+      phone,
     });
-
-    console.log(`?? Code sent to ${phone}: ${accessCode}`);
-
-    res.status(200).json({ success: true, message: 'Payment verified. Access code sent!', accessCode, phone });
   } catch (error) {
     console.error('? Verification error:', error.message);
     res.status(500).json({ success: false, message: 'Failed to verify payment.' });
@@ -223,11 +218,7 @@ app.post('/api/save-result', async (req, res) => {
     await result.save();
     res.status(200).json({ success: true, message: 'Result saved successfully.' });
   } catch (error) {
-    console.error('? Error saving result:', {
-      error: error.message,
-      fields: req.body,
-    });
-
+    console.error('? Error saving result:', error.message);
     res.status(500).json({ success: false, message: 'Failed to save result.' });
   }
 });
