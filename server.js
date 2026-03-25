@@ -87,41 +87,52 @@ app.post('/api/initiate-payment', async (req, res) => {
 });
 
 //
-// ?? Webhook for Paystack (RAW body fix)
+// ?? Paystack Webhook (safe raw body + signature verification)
 //
 app.post(
   '/paystack/webhook',
-  bodyParser.raw({ type: 'application/json' }), // <- important
+  bodyParser.raw({ type: 'application/json' }), // ensures req.body is a Buffer
   async (req, res) => {
     try {
-      // verify signature
+      // Compute HMAC hash using raw buffer
       const hash = crypto
         .createHmac('sha512', PAYSTACK_SECRET_KEY)
-        .update(req.body)
+        .update(req.body) // raw Buffer
         .digest('hex');
 
+      // Verify Paystack signature
       if (hash !== req.headers['x-paystack-signature']) {
         console.log('? Invalid webhook signature');
         return res.sendStatus(401);
       }
 
-      // parse JSON after verifying signature
-      const event = JSON.parse(req.body);
+      // Parse raw body to JSON
+      const event = JSON.parse(req.body.toString('utf8'));
 
+      // Only handle successful charges
       if (event.event === 'charge.success') {
         const { reference, metadata } = event.data;
         const { name, phone } = metadata || {};
 
-        if (!name || !phone) return res.sendStatus(200);
+        if (!name || !phone) {
+          console.log('?? Missing name or phone in metadata');
+          return res.sendStatus(200);
+        }
 
+        // Prevent duplicate access code generation
         const existing = await AccessCode.findOne({ reference });
-        if (existing) return res.sendStatus(200); // already processed
+        if (existing) {
+          console.log(`?? Access code for reference ${reference} already exists`);
+          return res.sendStatus(200);
+        }
 
+        // Generate unique access code
         let accessCode;
         do {
           accessCode = generateAccessCode();
         } while (await AccessCode.findOne({ code: accessCode }));
 
+        // Save access code to database
         const codeData = new AccessCode({
           code: accessCode,
           usageCount: 0,
@@ -133,7 +144,7 @@ app.post(
         });
 
         await codeData.save();
-        console.log(`? Access code generated via webhook: ${accessCode}`);
+        console.log(`? Access code generated: ${accessCode}`);
       }
 
       res.sendStatus(200);
@@ -143,7 +154,6 @@ app.post(
     }
   }
 );
-
 //
 // ?? Check Payment Status (for frontend polling)
 //
