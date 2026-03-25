@@ -31,6 +31,11 @@ app.use(cors(corsOptions));
 app.options('*', cors(corsOptions));
 app.use(bodyParser.json());
 
+/* ? NEW: Health check route (prevents cold start payment failure) */
+app.get('/api/health', (req, res) => {
+  res.status(200).json({ message: 'Server is awake' });
+});
+
 // Connect to MongoDB
 mongoose.connect(MONGODB_URI)
   .then(() => console.log('? Connected to MongoDB Atlas'))
@@ -38,11 +43,9 @@ mongoose.connect(MONGODB_URI)
 
 // Allowed subjects
 const allowedSubjects = [
-  // SHS
   "Physics", "Chemistry", "Biology", "CoreMaths", "AddMaths",
   "English", "SocialStudies", "Geography", "Economics",
   "ElectiveICT", "Accounting", "CostAccounting", "BusinessManagement",
-  // JHS
   "EnglishLanguage", "Maths", "CoreScience", "SocialStudies",
   "CareerTech", "Computing", "RME", "French", "CreativeArtsAndDesign"
 ];
@@ -96,7 +99,7 @@ app.post('/api/initiate-payment', async (req, res) => {
   }
 });
 
-// Verify Payment (without Twilio)
+// Verify Payment
 app.post('/api/verify-payment', async (req, res) => {
   const { reference } = req.body;
 
@@ -191,7 +194,7 @@ app.post('/api/save-result', async (req, res) => {
     const { name, school, score, subject } = req.body;
 
     if (!name || !school || score == null || !subject) {
-      return res.status(400).json({ success: false, message: 'All fields (name, school, score, subject) are required.' });
+      return res.status(400).json({ success: false, message: 'All fields are required.' });
     }
 
     const numericScore = Number(score);
