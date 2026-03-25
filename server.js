@@ -4,7 +4,6 @@ const cors = require('cors');
 const bodyParser = require('body-parser');
 const mongoose = require('mongoose');
 const fetch = require('node-fetch');
-const crypto = require('crypto');
 
 const Result = require('./models/Result');
 const AccessCode = require('./models/AccessCode');
@@ -31,7 +30,7 @@ const corsOptions = {
 app.use(cors(corsOptions));
 app.options('*', cors(corsOptions));
 
-// Use JSON for all non-webhook endpoints
+// Use JSON for all endpoints
 app.use(bodyParser.json());
 
 // Health check
@@ -55,7 +54,7 @@ function generateAccessCode(length = 8) {
 }
 
 //
-// ?? Initiate Payment
+// Initiate Payment
 //
 app.post('/api/initiate-payment', async (req, res) => {
   const { name, email, phone } = req.body;
@@ -89,70 +88,7 @@ app.post('/api/initiate-payment', async (req, res) => {
 });
 
 //
-// ?? Paystack Webhook (fixed raw body handling)
-//
-app.post(
-  '/paystack/webhook',
-  bodyParser.raw({ type: 'application/json' }),
-  async (req, res) => {
-    try {
-      // Convert raw buffer to string
-      const rawBody = req.body.toString('utf8');
-
-      // Verify webhook signature
-      const hash = crypto
-        .createHmac('sha512', PAYSTACK_SECRET_KEY)
-        .update(rawBody)
-        .digest('hex');
-
-      if (hash !== req.headers['x-paystack-signature']) {
-        console.log('? Invalid webhook signature');
-        return res.sendStatus(401);
-      }
-
-      // Parse JSON after verification
-      const event = JSON.parse(rawBody);
-
-      if (event.event === 'charge.success') {
-        const { reference, metadata } = event.data;
-        const { name, phone } = metadata || {};
-
-        if (!name || !phone) return res.sendStatus(200);
-
-        // Prevent duplicate access code
-        const existing = await AccessCode.findOne({ reference });
-        if (existing) return res.sendStatus(200);
-
-        // Generate unique code
-        let accessCode;
-        do {
-          accessCode = generateAccessCode();
-        } while (await AccessCode.findOne({ code: accessCode }));
-
-        const codeData = new AccessCode({
-          code: accessCode,
-          usageCount: 0,
-          maxUsage: 2,
-          name,
-          phone,
-          reference,
-          createdAt: new Date(),
-        });
-
-        await codeData.save();
-        console.log(`? Access code generated via webhook: ${accessCode}`);
-      }
-
-      res.sendStatus(200);
-    } catch (err) {
-      console.error('? Webhook processing error:', err.message);
-      res.sendStatus(500);
-    }
-  }
-);
-
-//
-// ?? Check Payment Status (frontend polling)
+// Check Payment Status (frontend polling)
 //
 app.get('/api/check-payment/:reference', async (req, res) => {
   const { reference } = req.params;
@@ -162,7 +98,7 @@ app.get('/api/check-payment/:reference', async (req, res) => {
 });
 
 //
-// ?? Old verify endpoint (backup)
+// Old verify endpoint (backup)
 //
 app.post('/api/verify-payment', async (req, res) => {
   const { reference } = req.body;
@@ -182,7 +118,7 @@ app.post('/api/verify-payment', async (req, res) => {
 });
 
 //
-// ?? Use Access Code
+// Use Access Code
 //
 app.post('/api/use-access-code', async (req, res) => {
   const { code } = req.body;
@@ -196,7 +132,7 @@ app.post('/api/use-access-code', async (req, res) => {
 });
 
 //
-// ?? Save Result
+// Save Result
 //
 app.post('/api/save-result', async (req, res) => {
   try {
@@ -210,7 +146,7 @@ app.post('/api/save-result', async (req, res) => {
 });
 
 //
-// ?? Leaderboard
+// Leaderboard
 //
 app.use('/api/leaderboard', leaderboardRouter);
 
