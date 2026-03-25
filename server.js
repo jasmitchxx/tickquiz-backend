@@ -30,6 +30,8 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 app.options('*', cors(corsOptions));
+
+// Use JSON for all non-webhook endpoints
 app.use(bodyParser.json());
 
 // Health check
@@ -53,7 +55,7 @@ function generateAccessCode(length = 8) {
 }
 
 //
-// Initiate Payment
+// ?? Initiate Payment
 //
 app.post('/api/initiate-payment', async (req, res) => {
   const { name, email, phone } = req.body;
@@ -69,7 +71,7 @@ app.post('/api/initiate-payment', async (req, res) => {
       },
       body: JSON.stringify({
         email,
-        amount: 1000,
+        amount: 1000, // Amount in Kobo
         callback_url: 'https://tickquiz.com/verify',
         metadata: { name, phone },
       }),
@@ -87,17 +89,20 @@ app.post('/api/initiate-payment', async (req, res) => {
 });
 
 //
-// Webhook for Paystack (fixed)
+// ?? Paystack Webhook (fixed raw body handling)
 //
 app.post(
   '/paystack/webhook',
-  bodyParser.raw({ type: 'application/json' }), // raw body for signature verification
+  bodyParser.raw({ type: 'application/json' }),
   async (req, res) => {
     try {
-      // verify signature using raw buffer
+      // Convert raw buffer to string
+      const rawBody = req.body.toString('utf8');
+
+      // Verify webhook signature
       const hash = crypto
         .createHmac('sha512', PAYSTACK_SECRET_KEY)
-        .update(req.body)
+        .update(rawBody)
         .digest('hex');
 
       if (hash !== req.headers['x-paystack-signature']) {
@@ -105,8 +110,8 @@ app.post(
         return res.sendStatus(401);
       }
 
-      // parse JSON after verifying signature
-      const event = JSON.parse(req.body.toString());
+      // Parse JSON after verification
+      const event = JSON.parse(rawBody);
 
       if (event.event === 'charge.success') {
         const { reference, metadata } = event.data;
@@ -114,9 +119,11 @@ app.post(
 
         if (!name || !phone) return res.sendStatus(200);
 
+        // Prevent duplicate access code
         const existing = await AccessCode.findOne({ reference });
-        if (existing) return res.sendStatus(200); // already processed
+        if (existing) return res.sendStatus(200);
 
+        // Generate unique code
         let accessCode;
         do {
           accessCode = generateAccessCode();
@@ -145,7 +152,7 @@ app.post(
 );
 
 //
-// Check Payment Status (frontend polling)
+// ?? Check Payment Status (frontend polling)
 //
 app.get('/api/check-payment/:reference', async (req, res) => {
   const { reference } = req.params;
@@ -155,7 +162,7 @@ app.get('/api/check-payment/:reference', async (req, res) => {
 });
 
 //
-// Verify Payment (backup)
+// ?? Old verify endpoint (backup)
 //
 app.post('/api/verify-payment', async (req, res) => {
   const { reference } = req.body;
@@ -175,7 +182,7 @@ app.post('/api/verify-payment', async (req, res) => {
 });
 
 //
-// Use Access Code
+// ?? Use Access Code
 //
 app.post('/api/use-access-code', async (req, res) => {
   const { code } = req.body;
@@ -189,7 +196,7 @@ app.post('/api/use-access-code', async (req, res) => {
 });
 
 //
-// Save Result
+// ?? Save Result
 //
 app.post('/api/save-result', async (req, res) => {
   try {
@@ -203,7 +210,7 @@ app.post('/api/save-result', async (req, res) => {
 });
 
 //
-// Leaderboard
+// ?? Leaderboard
 //
 app.use('/api/leaderboard', leaderboardRouter);
 
