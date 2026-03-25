@@ -29,19 +29,23 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 app.options('*', cors(corsOptions));
-
-// Use JSON for all endpoints
 app.use(bodyParser.json());
-
-// Health check
-app.get('/api/health', (req, res) => {
-  res.status(200).json({ message: 'Server is awake' });
-});
 
 // Connect to MongoDB
 mongoose.connect(MONGODB_URI)
   .then(() => console.log('? Connected to MongoDB Atlas'))
-  .catch(err => console.error('? MongoDB connection failed:', err));
+  .catch((err) => console.error('? MongoDB connection failed:', err));
+
+// Allowed subjects
+const allowedSubjects = [
+  // SHS
+  "Physics", "Chemistry", "Biology", "CoreMaths", "AddMaths",
+  "English", "SocialStudies", "Geography", "Economics",
+  "ElectiveICT", "Accounting", "CostAccounting", "BusinessManagement",
+  // JHS
+  "EnglishLanguage", "Maths", "CoreScience", "SocialStudies",
+  "CareerTech", "Computing", "RME", "French", "CreativeArtsAndDesign"
+];
 
 // Generate Access Code
 function generateAccessCode(length = 8) {
@@ -53,13 +57,13 @@ function generateAccessCode(length = 8) {
   return code;
 }
 
-//
 // Initiate Payment
-//
 app.post('/api/initiate-payment', async (req, res) => {
   const { name, email, phone } = req.body;
-  if (!name || !email || !phone)
-    return res.status(400).json({ message: 'Name, email, and phone are required.' });
+
+  if (!name || !email || !phone) {
+    return res.status(400).json({ message: 'Name, email, and phone are required for payment.' });
+  }
 
   try {
     const response = await fetch('https://api.paystack.co/transaction/initialize', {
@@ -70,108 +74,164 @@ app.post('/api/initiate-payment', async (req, res) => {
       },
       body: JSON.stringify({
         email,
-        amount: 1000, // Amount in Kobo
+        amount: 1000,
         callback_url: 'https://tickquiz.com/verify',
         metadata: { name, phone },
       }),
     });
 
     const data = await response.json();
+
+    if (!data.status) {
+      return res.status(400).json({ message: 'Failed to initiate payment.' });
+    }
+
     res.json({
       authorization_url: data.data.authorization_url,
       reference: data.data.reference,
     });
   } catch (error) {
-    console.error('? Payment init error:', error.message);
-    res.status(500).json({ message: 'Payment initiation failed.' });
+    console.error('? Error initiating payment:', error.message);
+    res.status(500).json({ message: 'Error initiating payment.' });
   }
 });
 
-//
-// Verify Payment & Generate Access Code
-//
+// Verify Payment (without Twilio)
 app.post('/api/verify-payment', async (req, res) => {
-  const { reference, name, phone } = req.body; // send name & phone from frontend
+  const { reference } = req.body;
+
+  if (!reference) {
+    return res.status(400).json({ success: false, message: 'Reference is required.' });
+  }
 
   try {
-    // Verify payment with Paystack
     const verifyRes = await fetch(`https://api.paystack.co/transaction/verify/${reference}`, {
-      headers: { Authorization: `Bearer ${PAYSTACK_SECRET_KEY}` },
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${PAYSTACK_SECRET_KEY}`,
+        'Content-Type': 'application/json',
+      },
     });
+
     const verifyData = await verifyRes.json();
 
     if (!verifyData.status || verifyData.data.status !== 'success') {
-      return res.status(400).json({ success: false, message: 'Payment not successful' });
+      return res.status(400).json({ success: false, message: 'Payment not successful.' });
     }
 
-    // Check if access code already exists
-    let codeEntry = await AccessCode.findOne({ reference });
-    if (!codeEntry) {
-      // Generate unique access code
-      let accessCode;
-      do {
-        accessCode = generateAccessCode();
-      } while (await AccessCode.findOne({ code: accessCode }));
-
-      // Save to DB
-      codeEntry = new AccessCode({
-        code: accessCode,
-        usageCount: 0,
-        maxUsage: 2,
-        name: name || 'User',
-        phone: phone || '',
-        reference,
-        createdAt: new Date(),
-      });
-
-      await codeEntry.save();
-      console.log(`? Access code generated: ${accessCode}`);
+    const { name, phone } = verifyData.data.metadata || {};
+    if (!name || !phone) {
+      return res.status(400).json({ success: false, message: 'Missing metadata for access code generation.' });
     }
 
-    return res.json({ success: true, accessCode: codeEntry.code });
+    let accessCode;
+    do {
+      accessCode = generateAccessCode();
+    } while (await AccessCode.findOne({ code: accessCode }));
+
+    const codeData = new AccessCode({
+      code: accessCode,
+      usageCount: 0,
+      maxUsage: 2,
+      name,
+      phone,
+      createdAt: new Date(),
+    });
+
+    await codeData.save();
+
+    console.log(`? Access code generated: ${accessCode} for ${phone}`);
+
+    res.status(200).json({
+      success: true,
+      message: 'Payment verified. Access code generated!',
+      accessCode,
+      phone,
+    });
   } catch (error) {
-    console.error('? Verify payment error:', error.message);
-    res.status(500).json({ success: false, message: 'Verification failed' });
+    console.error('? Verification error:', error.message);
+    res.status(500).json({ success: false, message: 'Failed to verify payment.' });
   }
 });
 
-//
+// Redirect after payment
+app.get('/verify-payment', (req, res) => {
+  const { reference } = req.query;
+  if (!reference) return res.redirect('https://tickquiz.com/');
+  return res.redirect(`https://tickquiz.com/verify?reference=${reference}`);
+});
+
 // Use Access Code
-//
 app.post('/api/use-access-code', async (req, res) => {
   const { code } = req.body;
+
+  if (!code) {
+    return res.status(400).json({ success: false, message: 'Access code is required.' });
+  }
+
   const codeEntry = await AccessCode.findOne({ code });
-  if (!codeEntry) return res.status(404).json({ success: false });
-  if (codeEntry.usageCount >= codeEntry.maxUsage) return res.status(403).json({ success: false });
+
+  if (!codeEntry) {
+    return res.status(404).json({ success: false, message: 'Invalid access code.' });
+  }
+
+  if (codeEntry.usageCount >= codeEntry.maxUsage) {
+    return res.status(403).json({ success: false, message: 'Access code has expired.' });
+  }
 
   codeEntry.usageCount += 1;
   await codeEntry.save();
-  res.json({ success: true });
+
+  return res.status(200).json({ success: true, message: 'Access granted.', usageCount: codeEntry.usageCount });
 });
 
-//
-// Save Result
-//
+// Save Quiz Result
 app.post('/api/save-result', async (req, res) => {
   try {
     const { name, school, score, subject } = req.body;
-    const result = new Result({ name, school, score, subject });
+
+    if (!name || !school || score == null || !subject) {
+      return res.status(400).json({ success: false, message: 'All fields (name, school, score, subject) are required.' });
+    }
+
+    const numericScore = Number(score);
+    if (isNaN(numericScore)) {
+      return res.status(400).json({ success: false, message: 'Score must be a valid number.' });
+    }
+
+    const normalizedSubjects = allowedSubjects.map((s) => s.toLowerCase());
+    if (!normalizedSubjects.includes(subject.toLowerCase())) {
+      return res.status(400).json({ success: false, message: 'Invalid subject submitted.' });
+    }
+
+    const properSubject = allowedSubjects.find(
+      (s) => s.toLowerCase() === subject.toLowerCase()
+    );
+
+    const result = new Result({
+      name,
+      school,
+      score: numericScore,
+      subject: properSubject,
+    });
+
     await result.save();
-    res.json({ success: true });
+    res.status(200).json({ success: true, message: 'Result saved successfully.' });
   } catch (error) {
-    res.status(500).json({ success: false });
+    console.error('? Error saving result:', error.message);
+    res.status(500).json({ success: false, message: 'Failed to save result.' });
   }
 });
 
-//
-// Leaderboard
-//
+// Leaderboard route
 app.use('/api/leaderboard', leaderboardRouter);
 
+// Root route
 app.get('/', (req, res) => {
-  res.send('? TickQuiz Backend Running');
+  res.send('? TickQuiz Backend is running.');
 });
 
+// Start server
 app.listen(PORT, () => {
   console.log(`?? Server running on port ${PORT}`);
 });
