@@ -40,7 +40,7 @@ app.get('/api/health', (req, res) => {
 // Connect to MongoDB
 mongoose.connect(MONGODB_URI)
   .then(() => console.log('? Connected to MongoDB Atlas'))
-  .catch((err) => console.error('? MongoDB connection failed:', err));
+  .catch(err => console.error('? MongoDB connection failed:', err));
 
 // Generate Access Code
 function generateAccessCode(length = 8) {
@@ -53,14 +53,12 @@ function generateAccessCode(length = 8) {
 }
 
 //
-// ?? INITIATE PAYMENT
+// ?? Initiate Payment
 //
 app.post('/api/initiate-payment', async (req, res) => {
   const { name, email, phone } = req.body;
-
-  if (!name || !email || !phone) {
+  if (!name || !email || !phone)
     return res.status(400).json({ message: 'Name, email, and phone are required.' });
-  }
 
   try {
     const response = await fetch('https://api.paystack.co/transaction/initialize', {
@@ -78,12 +76,10 @@ app.post('/api/initiate-payment', async (req, res) => {
     });
 
     const data = await response.json();
-
     res.json({
       authorization_url: data.data.authorization_url,
       reference: data.data.reference,
     });
-
   } catch (error) {
     console.error('? Payment init error:', error.message);
     res.status(500).json({ message: 'Payment initiation failed.' });
@@ -91,7 +87,7 @@ app.post('/api/initiate-payment', async (req, res) => {
 });
 
 //
-// ?? WEBHOOK (MAIN FIX)
+// ?? Webhook for Paystack
 //
 app.post('/paystack/webhook', express.json(), async (req, res) => {
   const hash = crypto
@@ -99,28 +95,17 @@ app.post('/paystack/webhook', express.json(), async (req, res) => {
     .update(JSON.stringify(req.body))
     .digest('hex');
 
-  if (hash !== req.headers['x-paystack-signature']) {
-    return res.sendStatus(401);
-  }
+  if (hash !== req.headers['x-paystack-signature']) return res.sendStatus(401);
 
   const event = req.body;
-
   if (event.event === 'charge.success') {
-    const data = event.data;
-    const reference = data.reference;
-    const { name, phone } = data.metadata || {};
+    const { reference, metadata } = event.data;
+    const { name, phone } = metadata || {};
 
-    if (!name || !phone) {
-      console.log("? Missing metadata");
-      return res.sendStatus(200);
-    }
+    if (!name || !phone) return res.sendStatus(200);
 
-    // Prevent duplicate
     const existing = await AccessCode.findOne({ reference });
-    if (existing) {
-      console.log("?? Already processed:", reference);
-      return res.sendStatus(200);
-    }
+    if (existing) return res.sendStatus(200); // already processed
 
     let accessCode;
     do {
@@ -138,100 +123,77 @@ app.post('/paystack/webhook', express.json(), async (req, res) => {
     });
 
     await codeData.save();
-
-    console.log(`? Code generated via webhook: ${accessCode}`);
+    console.log(`? Access code generated via webhook: ${accessCode}`);
   }
 
   res.sendStatus(200);
 });
 
 //
-// ?? CHECK PAYMENT STATUS (Frontend will use this)
+// ?? Check Payment Status (for frontend polling)
 //
 app.get('/api/check-payment/:reference', async (req, res) => {
   const { reference } = req.params;
-
   const code = await AccessCode.findOne({ reference });
-
-  if (code) {
-    return res.json({
-      success: true,
-      accessCode: code.code,
-    });
-  }
-
+  if (code) return res.json({ success: true, accessCode: code.code });
   res.json({ success: false });
 });
 
 //
-// ?? OLD VERIFY (KEEP AS BACKUP)
+// ?? Old verify endpoint (backup)
 //
 app.post('/api/verify-payment', async (req, res) => {
   const { reference } = req.body;
-
   try {
     const verifyRes = await fetch(`https://api.paystack.co/transaction/verify/${reference}`, {
-      headers: {
-        Authorization: `Bearer ${PAYSTACK_SECRET_KEY}`,
-      },
+      headers: { Authorization: `Bearer ${PAYSTACK_SECRET_KEY}` },
     });
-
     const verifyData = await verifyRes.json();
 
-    if (!verifyData.status || verifyData.data.status !== 'success') {
+    if (!verifyData.status || verifyData.data.status !== 'success')
       return res.status(400).json({ success: false });
-    }
 
     return res.json({ success: true });
-
   } catch (error) {
     res.status(500).json({ success: false });
   }
 });
 
 //
-// USE ACCESS CODE
+// ?? Use Access Code
 //
 app.post('/api/use-access-code', async (req, res) => {
   const { code } = req.body;
-
   const codeEntry = await AccessCode.findOne({ code });
-
-  if (!codeEntry) {
-    return res.status(404).json({ success: false });
-  }
-
-  if (codeEntry.usageCount >= codeEntry.maxUsage) {
-    return res.status(403).json({ success: false });
-  }
+  if (!codeEntry) return res.status(404).json({ success: false });
+  if (codeEntry.usageCount >= codeEntry.maxUsage) return res.status(403).json({ success: false });
 
   codeEntry.usageCount += 1;
   await codeEntry.save();
-
   res.json({ success: true });
 });
 
 //
-// SAVE RESULT
+// ?? Save Result
 //
 app.post('/api/save-result', async (req, res) => {
   try {
     const { name, school, score, subject } = req.body;
-
     const result = new Result({ name, school, score, subject });
     await result.save();
-
     res.json({ success: true });
-
   } catch (error) {
     res.status(500).json({ success: false });
   }
 });
 
+//
+// ?? Leaderboard
+//
 app.use('/api/leaderboard', leaderboardRouter);
 
 app.get('/', (req, res) => {
-  res.send('?? TickQuiz Backend Running');
+  res.send('? TickQuiz Backend Running');
 });
 
 app.listen(PORT, () => {
