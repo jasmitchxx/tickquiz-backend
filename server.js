@@ -88,32 +88,50 @@ app.post('/api/initiate-payment', async (req, res) => {
 });
 
 //
-// Check Payment Status (frontend polling)
-//
-app.get('/api/check-payment/:reference', async (req, res) => {
-  const { reference } = req.params;
-  const code = await AccessCode.findOne({ reference });
-  if (code) return res.json({ success: true, accessCode: code.code });
-  res.json({ success: false });
-});
-
-//
-// Old verify endpoint (backup)
+// Verify Payment & Generate Access Code
 //
 app.post('/api/verify-payment', async (req, res) => {
-  const { reference } = req.body;
+  const { reference, name, phone } = req.body; // send name & phone from frontend
+
   try {
+    // Verify payment with Paystack
     const verifyRes = await fetch(`https://api.paystack.co/transaction/verify/${reference}`, {
       headers: { Authorization: `Bearer ${PAYSTACK_SECRET_KEY}` },
     });
     const verifyData = await verifyRes.json();
 
-    if (!verifyData.status || verifyData.data.status !== 'success')
-      return res.status(400).json({ success: false });
+    if (!verifyData.status || verifyData.data.status !== 'success') {
+      return res.status(400).json({ success: false, message: 'Payment not successful' });
+    }
 
-    return res.json({ success: true });
+    // Check if access code already exists
+    let codeEntry = await AccessCode.findOne({ reference });
+    if (!codeEntry) {
+      // Generate unique access code
+      let accessCode;
+      do {
+        accessCode = generateAccessCode();
+      } while (await AccessCode.findOne({ code: accessCode }));
+
+      // Save to DB
+      codeEntry = new AccessCode({
+        code: accessCode,
+        usageCount: 0,
+        maxUsage: 2,
+        name: name || 'User',
+        phone: phone || '',
+        reference,
+        createdAt: new Date(),
+      });
+
+      await codeEntry.save();
+      console.log(`? Access code generated: ${accessCode}`);
+    }
+
+    return res.json({ success: true, accessCode: codeEntry.code });
   } catch (error) {
-    res.status(500).json({ success: false });
+    console.error('? Verify payment error:', error.message);
+    res.status(500).json({ success: false, message: 'Verification failed' });
   }
 });
 
