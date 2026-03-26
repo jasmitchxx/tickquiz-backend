@@ -1,7 +1,6 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
-const bodyParser = require('body-parser');
 const mongoose = require('mongoose');
 const fetch = require('node-fetch');
 
@@ -15,7 +14,7 @@ const PORT = process.env.PORT || 5000;
 
 const app = express();
 
-// CORS configuration
+// ================= CORS =================
 const corsOptions = {
   origin: [
     'https://tickquiz.com',
@@ -24,30 +23,26 @@ const corsOptions = {
     'https://tickquiz.netlify.app',
   ],
   methods: ['GET', 'POST'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
 };
 
 app.use(cors(corsOptions));
-app.options('*', cors(corsOptions));
-app.use(bodyParser.json());
+app.use(express.json());
 
-// Connect to MongoDB
+// ================= DATABASE =================
 mongoose.connect(MONGODB_URI)
   .then(() => console.log('? Connected to MongoDB Atlas'))
   .catch((err) => console.error('? MongoDB connection failed:', err));
 
-// Allowed subjects
+// ================= SUBJECTS =================
 const allowedSubjects = [
-  // SHS
   "Physics", "Chemistry", "Biology", "CoreMaths", "AddMaths",
   "English", "SocialStudies", "Geography", "Economics",
   "ElectiveICT", "Accounting", "CostAccounting", "BusinessManagement",
-  // JHS
-  "EnglishLanguage", "Maths", "CoreScience", "SocialStudies",
-  "CareerTech", "Computing", "RME", "French", "CreativeArtsAndDesign"
+  "EnglishLanguage", "Maths", "CoreScience", "CareerTech",
+  "Computing", "RME", "French", "CreativeArtsAndDesign"
 ];
 
-// Generate Access Code
+// ================= GENERATE CODE =================
 function generateAccessCode(length = 8) {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   let code = '';
@@ -57,12 +52,12 @@ function generateAccessCode(length = 8) {
   return code;
 }
 
-// Initiate Payment
+// ================= INITIATE PAYMENT =================
 app.post('/api/initiate-payment', async (req, res) => {
   const { name, email, phone } = req.body;
 
   if (!name || !email || !phone) {
-    return res.status(400).json({ message: 'Name, email, and phone are required for payment.' });
+    return res.status(400).json({ message: 'All fields required.' });
   }
 
   try {
@@ -75,7 +70,7 @@ app.post('/api/initiate-payment', async (req, res) => {
       body: JSON.stringify({
         email,
         amount: 1000,
-        callback_url: 'https://tickquiz.com/verify',
+        callback_url: 'https://tickquiz.netlify.app/verify',
         metadata: { name, phone },
       }),
     });
@@ -83,25 +78,26 @@ app.post('/api/initiate-payment', async (req, res) => {
     const data = await response.json();
 
     if (!data.status) {
-      return res.status(400).json({ message: 'Failed to initiate payment.' });
+      return res.status(400).json({ message: 'Payment init failed' });
     }
 
     res.json({
       authorization_url: data.data.authorization_url,
       reference: data.data.reference,
     });
+
   } catch (error) {
-    console.error('? Error initiating payment:', error.message);
-    res.status(500).json({ message: 'Error initiating payment.' });
+    console.error('? Payment init error:', error.message);
+    res.status(500).json({ message: 'Server error' });
   }
 });
 
-// Verify Payment (without Twilio)
+// ================= VERIFY PAYMENT =================
 app.post('/api/verify-payment', async (req, res) => {
   const { reference } = req.body;
 
   if (!reference) {
-    return res.status(400).json({ success: false, message: 'Reference is required.' });
+    return res.status(400).json({ success: false, message: 'Reference required' });
   }
 
   try {
@@ -109,129 +105,145 @@ app.post('/api/verify-payment', async (req, res) => {
       method: 'GET',
       headers: {
         Authorization: `Bearer ${PAYSTACK_SECRET_KEY}`,
-        'Content-Type': 'application/json',
       },
     });
 
     const verifyData = await verifyRes.json();
 
     if (!verifyData.status || verifyData.data.status !== 'success') {
-      return res.status(400).json({ success: false, message: 'Payment not successful.' });
+      return res.status(400).json({ success: false, message: 'Payment not successful' });
+    }
+
+    // Prevent duplicate
+    const existing = await AccessCode.findOne({ reference });
+    if (existing) {
+      return res.json({
+        success: true,
+        accessCode: existing.code,
+        name: existing.name
+      });
     }
 
     const { name, phone } = verifyData.data.metadata || {};
+
     if (!name || !phone) {
-      return res.status(400).json({ success: false, message: 'Missing metadata for access code generation.' });
+      return res.status(400).json({ success: false, message: 'Metadata missing' });
     }
 
+    // Generate unique code
     let accessCode;
     do {
       accessCode = generateAccessCode();
     } while (await AccessCode.findOne({ code: accessCode }));
 
-    const codeData = new AccessCode({
+    const newCode = new AccessCode({
       code: accessCode,
-      usageCount: 0,
-      maxUsage: 2,
+      usageCount: 0, // no longer used
+      maxUsage: null, // unlimited
       name,
       phone,
+      reference,
       createdAt: new Date(),
     });
 
-    await codeData.save();
+    await newCode.save();
 
-    console.log(`? Access code generated: ${accessCode} for ${phone}`);
+    console.log(`? Code generated: ${accessCode}`);
 
-    res.status(200).json({
+    res.json({
       success: true,
-      message: 'Payment verified. Access code generated!',
       accessCode,
-      phone,
+      name
     });
+
   } catch (error) {
     console.error('? Verification error:', error.message);
-    res.status(500).json({ success: false, message: 'Failed to verify payment.' });
+    res.status(500).json({ success: false, message: 'Verification failed' });
   }
 });
 
-// Redirect after payment
-app.get('/verify-payment', (req, res) => {
-  const { reference } = req.query;
-  if (!reference) return res.redirect('https://tickquiz.com/');
-  return res.redirect(`https://tickquiz.com/verify?reference=${reference}`);
-});
-
-// Use Access Code
+// ================= USE ACCESS CODE =================
 app.post('/api/use-access-code', async (req, res) => {
   const { code } = req.body;
 
-  if (!code) {
-    return res.status(400).json({ success: false, message: 'Access code is required.' });
+  try {
+    const entry = await AccessCode.findOne({ code });
+
+    if (!entry) {
+      return res.status(404).json({ success: false, message: 'Invalid code' });
+    }
+
+    // ? No limit — frontend controls attempts
+    res.json({
+      success: true,
+      name: entry.name,
+      message: 'Access granted'
+    });
+
+  } catch (err) {
+    console.error('Use access code error:', err);
+    res.status(500).json({ success: false, message: 'Server error' });
   }
-
-  const codeEntry = await AccessCode.findOne({ code });
-
-  if (!codeEntry) {
-    return res.status(404).json({ success: false, message: 'Invalid access code.' });
-  }
-
-  if (codeEntry.usageCount >= codeEntry.maxUsage) {
-    return res.status(403).json({ success: false, message: 'Access code has expired.' });
-  }
-
-  codeEntry.usageCount += 1;
-  await codeEntry.save();
-
-  return res.status(200).json({ success: true, message: 'Access granted.', usageCount: codeEntry.usageCount });
 });
 
-// Save Quiz Result
+// ================= SAVE RESULT =================
 app.post('/api/save-result', async (req, res) => {
   try {
     const { name, school, score, subject } = req.body;
 
     if (!name || !school || score == null || !subject) {
-      return res.status(400).json({ success: false, message: 'All fields (name, school, score, subject) are required.' });
+      return res.status(400).json({ success: false, message: 'All fields required' });
     }
 
     const numericScore = Number(score);
     if (isNaN(numericScore)) {
-      return res.status(400).json({ success: false, message: 'Score must be a valid number.' });
+      return res.status(400).json({ success: false, message: 'Invalid score' });
     }
 
-    const normalizedSubjects = allowedSubjects.map((s) => s.toLowerCase());
-    if (!normalizedSubjects.includes(subject.toLowerCase())) {
-      return res.status(400).json({ success: false, message: 'Invalid subject submitted.' });
-    }
-
-    const properSubject = allowedSubjects.find(
-      (s) => s.toLowerCase() === subject.toLowerCase()
+    const valid = allowedSubjects.find(
+      s => s.toLowerCase() === subject.toLowerCase()
     );
+
+    if (!valid) {
+      return res.status(400).json({ success: false, message: 'Invalid subject' });
+    }
 
     const result = new Result({
       name,
       school,
       score: numericScore,
-      subject: properSubject,
+      subject: valid,
     });
 
     await result.save();
-    res.status(200).json({ success: true, message: 'Result saved successfully.' });
-  } catch (error) {
-    console.error('? Error saving result:', error.message);
-    res.status(500).json({ success: false, message: 'Failed to save result.' });
+
+    res.json({ success: true });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false });
   }
 });
 
-// Leaderboard route
+// ================= LEADERBOARD =================
 app.use('/api/leaderboard', leaderboardRouter);
 
-// Root route
+// ================= ROOT =================
 app.get('/', (req, res) => {
-  res.send('? TickQuiz Backend is running.');
+  res.send('?? TickQuiz Backend Running');
 });
 
-// Start server
+// ================= AUTO WAKE =================
+setInterval(async () => {
+  try {
+    await fetch('https://tickquiz-backend.onrender.com/');
+    console.log('?? Pinged self');
+  } catch (err) {
+    console.log('Ping failed');
+  }
+}, 300000);
+
+// ================= START SERVER =================
 app.listen(PORT, () => {
   console.log(`?? Server running on port ${PORT}`);
 });
