@@ -39,7 +39,7 @@ const allowedSubjects = [
   "English", "SocialStudies", "Geography", "Economics",
   "ElectiveICT", "Accounting", "CostAccounting", "BusinessManagement",
   "EnglishLanguage", "Maths", "CoreScience", "CareerTech",
-  "Computing", "RME", "French", "CreativeArtsAndDesign"
+  "Computing", "RME", "French","Crs","CreativeArtsAndDesign"
 ];
 
 // ================= GENERATE CODE =================
