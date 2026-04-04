@@ -37,7 +37,7 @@ mongoose.connect(MONGODB_URI)
 const allowedSubjects = [
   "Physics", "Chemistry", "Biology", "CoreMaths", "AddMaths",
   "English", "SocialStudies", "Geography", "Economics",
-  "ElectiveICT", "Accounting", "CostAccounting", "BusinessManagement",
+  "ElectiveICT", "Accounting","History", "Agric",  "CostAccounting", "BusinessManagement",
   "EnglishLanguage", "Maths", "CoreScience","Government", "CareerTech",
   "Computing", "RME", "French","Crs","CreativeArtsAndDesign"
 ];
