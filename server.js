@@ -173,7 +173,7 @@ app.post('/api/use-access-code', async (req, res) => {
       return res.status(404).json({ success: false, message: 'Invalid code' });
     }
 
-    // ? No limit — frontend controls attempts
+    // ? No limit ï¿½ frontend controls attempts
     res.json({
       success: true,
       name: entry.name,
