@@ -1,12 +1,32 @@
 require('dotenv').config();
 const express = require('express');
-const cors = require('cors');
 const mongoose = require('mongoose');
 const fetch = require('node-fetch');
+
+const OpenAI = require("openai");
+
+
+
+
+
+
+
 
 const Result = require('./models/Result');
 const AccessCode = require('./models/AccessCode');
 const leaderboardRouter = require('./leaderboard');
+
+
+
+
+
+
+
+
+
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
 
 const PAYSTACK_SECRET_KEY = process.env.PAYSTACK_SECRET_KEY;
 const MONGODB_URI = process.env.MONGODB_URI;
@@ -15,19 +35,10 @@ const PORT = process.env.PORT || 5000;
 const app = express();
 
 // ================= CORS =================
-const corsOptions = {
-  origin: [
-    'https://tickquiz.com',
-    'http://localhost:3000',
-    'https://tickquiz-frontend.onrender.com',
-    'https://tickquiz.netlify.app',
-  ],
-  methods: ['GET', 'POST'],
-};
+const cors = require('cors');
 
-app.use(cors(corsOptions));
+app.use(cors());
 app.use(express.json());
-
 // ================= DATABASE =================
 mongoose.connect(MONGODB_URI)
   .then(() => console.log('? Connected to MongoDB Atlas'))
@@ -54,12 +65,16 @@ function generateAccessCode(length = 8) {
 
 // ================= INITIATE PAYMENT =================
 app.post('/api/initiate-payment', async (req, res) => {
-  const { name, email, phone } = req.body;
+  const { name, email, phone, product } = req.body;
+  let amount = 1000;
+
+if (product === 'ai-tutor') {
+  amount = 5000;
+}
 
   if (!name || !email || !phone) {
     return res.status(400).json({ message: 'All fields required.' });
   }
-
   try {
     const response = await fetch('https://api.paystack.co/transaction/initialize', {
       method: 'POST',
@@ -68,11 +83,15 @@ app.post('/api/initiate-payment', async (req, res) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        email,
-        amount: 1000,
-        callback_url: 'https://tickquiz.netlify.app/verify',
-        metadata: { name, phone },
-      }),
+  email,
+  amount,
+  callback_url: 'https://tickquiz.netlify.app/verify',
+  metadata: {
+    name,
+    phone,
+    product
+  },
+}),
     });
 
     const data = await response.json();
@@ -162,18 +181,77 @@ app.post('/api/verify-payment', async (req, res) => {
   }
 });
 
+
+app.post('/api/initiate-ai-payment', async (req, res) => {
+
+  console.log('AI PAYMENT ROUTE HIT');
+  console.log('BODY:', req.body);
+
+  const { name, email, phone } = req.body;
+
+  try {
+
+    const response = await fetch(
+      'https://api.paystack.co/transaction/initialize',
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${PAYSTACK_SECRET_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email,
+          amount: 5000,
+          callback_url:
+            'https://tickquiz.netlify.app/ai-success',
+          metadata: {
+            name,
+            phone,
+            product: 'ai-tutor'
+          }
+        }),
+      }
+    );
+
+    const data = await response.json();
+
+    console.log('PAYSTACK RESPONSE:', data);
+
+    res.json({
+      authorization_url:
+        data.data.authorization_url
+    });
+
+  } catch (err) {
+
+    console.error('AI PAYMENT ERROR:', err);
+
+    res.status(500).json({
+      message: 'Payment failed'
+    });
+
+  }
+
+});
+
+
+
 // ================= USE ACCESS CODE =================
 app.post('/api/use-access-code', async (req, res) => {
+
   const { code } = req.body;
 
   try {
+
     const entry = await AccessCode.findOne({ code });
 
     if (!entry) {
-      return res.status(404).json({ success: false, message: 'Invalid code' });
+      return res.status(404).json({
+        success: false,
+        message: 'Invalid code'
+      });
     }
 
-    // ? No limit � frontend controls attempts
     res.json({
       success: true,
       name: entry.name,
@@ -181,9 +259,16 @@ app.post('/api/use-access-code', async (req, res) => {
     });
 
   } catch (err) {
+
     console.error('Use access code error:', err);
-    res.status(500).json({ success: false, message: 'Server error' });
+
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+
   }
+
 });
 
 // ================= SAVE RESULT =================
@@ -242,6 +327,25 @@ setInterval(async () => {
     console.log('Ping failed');
   }
 }, 300000);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 // ================= START SERVER =================
 app.listen(PORT, () => {
