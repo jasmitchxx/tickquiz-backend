@@ -333,6 +333,20 @@ setInterval(async () => {
   }
 }, 300000);
 
+
+
+app.post('/api/ask-ai', async (req, res) => {
+
+  console.log("ASK AI HIT");
+  console.log("BODY:", req.body);
+
+  try {
+
+
+
+
+
+
 app.post('/api/ask-ai', async (req, res) => {
 
   try {
@@ -366,16 +380,17 @@ app.post('/api/ask-ai', async (req, res) => {
         completion.choices[0].message.content
     });
 
-  } catch (err) {
+  } 
+  catch (err) {
 
-    console.error(err);
+  console.error("AI ERROR:", err);
 
-    res.status(500).json({
-      answer:
-        'Sorry, AI could not answer your question.'
-    });
+  res.status(500).json({
+    answer:
+      'Sorry, AI could not answer your question.'
+  });
 
-  }
+}
 
 });
 
