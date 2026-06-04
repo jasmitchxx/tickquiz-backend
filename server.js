@@ -9,21 +9,20 @@ const Result = require('./models/Result');
 const AccessCode = require('./models/AccessCode');
 const leaderboardRouter = require('./leaderboard');
 
+
+
+console.log(
+  'OPENAI_API_KEY exists:',
+  !!process.env.OPENAI_API_KEY
+);
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-
-
-
-
-
-
-
-
 const PAYSTACK_SECRET_KEY = process.env.PAYSTACK_SECRET_KEY;
 const MONGODB_URI = process.env.MONGODB_URI;
 const PORT = process.env.PORT || 5000;
+
 
 const app = express();
 
