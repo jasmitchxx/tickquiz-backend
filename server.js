@@ -190,7 +190,9 @@ app.post('/api/initiate-ai-payment', async (req, res) => {
   console.log('AI PAYMENT ROUTE HIT');
   console.log('BODY:', req.body);
 
-  const { name, email, phone } = req.body;
+  const name = req.body.name?.trim();
+const email = req.body.email?.trim();
+const phone = req.body.phone?.trim();
 
   try {
 
