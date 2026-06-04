@@ -9,24 +9,17 @@ const OpenAI = require("openai");
 
 
 
-
-
-
 const Result = require('./models/Result');
 const AccessCode = require('./models/AccessCode');
 const leaderboardRouter = require('./leaderboard');
 
 
 
-
-
-
-
-
-
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
+
+
 
 const PAYSTACK_SECRET_KEY = process.env.PAYSTACK_SECRET_KEY;
 const MONGODB_URI = process.env.MONGODB_URI;
