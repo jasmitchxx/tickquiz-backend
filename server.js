@@ -11,20 +11,20 @@ const leaderboardRouter = require('./leaderboard');
 
 
 
+let openai = null;
+
 console.log(
   "OPENAI_API_KEY exists:",
   !!process.env.OPENAI_API_KEY
 );
 
-console.log(
-  "OPENAI_API_KEY length:",
-  process.env.OPENAI_API_KEY?.length
-);
-
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
-
+if (process.env.OPENAI_API_KEY) {
+  openai = new OpenAI({
+    apiKey: process.env.OPENAI_API_KEY,
+  });
+} else {
+  console.log("OPENAI_API_KEY not found");
+}
 
 
 
