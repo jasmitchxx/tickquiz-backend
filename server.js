@@ -331,21 +331,51 @@ setInterval(async () => {
   }
 }, 300000);
 
+app.post('/api/ask-ai', async (req, res) => {
 
+  try {
 
+    const { subject, question } = req.body;
 
+    if (!openai) {
+      return res.status(500).json({
+        answer: 'AI service unavailable.'
+      });
+    }
 
+    const completion =
+      await openai.chat.completions.create({
+        model: "gpt-4.1-mini",
+        messages: [
+          {
+            role: "system",
+            content:
+              `You are a helpful tutor for ${subject}.`
+          },
+          {
+            role: "user",
+            content: question
+          }
+        ]
+      });
 
+    res.json({
+      answer:
+        completion.choices[0].message.content
+    });
 
+  } catch (err) {
 
+    console.error(err);
 
+    res.status(500).json({
+      answer:
+        'Sorry, AI could not answer your question.'
+    });
 
+  }
 
-
-
-
-
-
+});
 
 
 
