@@ -335,17 +335,6 @@ setInterval(async () => {
 
 
 
-app.post('/api/ask-ai', async (req, res) => {
-
-  console.log("ASK AI HIT");
-  console.log("BODY:", req.body);
-
-  try {
-
-
-
-
-
 
 app.post('/api/ask-ai', async (req, res) => {
 
