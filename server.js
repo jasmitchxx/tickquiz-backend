@@ -72,7 +72,7 @@ app.post('/api/initiate-payment', async (req, res) => {
   let amount = 1000;
 
 if (product === 'ai-tutor') {
-  amount = 5000;
+  amount = 200;
 }
 
   if (!name || !email || !phone) {
@@ -206,7 +206,7 @@ const phone = req.body.phone?.trim();
         },
         body: JSON.stringify({
           email,
-          amount: 5000,
+          amount: 200,
           callback_url:
             'https://tickquiz.netlify.app/ai-success',
           metadata: {
