@@ -2,6 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
 const fetch = require('node-fetch');
+const multer = require('multer');
 
 const OpenAI = require("openai");
 
@@ -37,6 +38,10 @@ const PORT = process.env.PORT || 5000;
 
 const app = express();
 
+
+const upload = multer({
+  storage: multer.memoryStorage()
+});
 // ================= CORS =================
 const cors = require('cors');
 
@@ -335,12 +340,29 @@ setInterval(async () => {
 
 
 
-
-app.post('/api/ask-ai', async (req, res) => {
+app.post(
+  '/api/ask-ai',
+  upload.single('file'),
+  async (req, res) => {
 
   try {
 
     const { subject, question } = req.body;
+    let fileInfo = '';
+
+if (req.file) {
+
+  fileInfo = `
+Uploaded File:
+${req.file.originalname}
+
+File Type:
+${req.file.mimetype}
+`;
+
+  console.log('FILE RECEIVED:', req.file.originalname);
+
+}
 
     if (!openai) {
       return res.status(500).json({
@@ -358,9 +380,14 @@ app.post('/api/ask-ai', async (req, res) => {
               `You are a helpful tutor for ${subject}.`
           },
           {
-            role: "user",
-            content: question
-          }
+  role: "user",
+  content: `
+${fileInfo}
+
+Question:
+${question}
+`
+}
         ]
       });
 
