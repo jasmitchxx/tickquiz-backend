@@ -76,9 +76,7 @@ app.post('/api/initiate-payment', async (req, res) => {
   const { name, email, phone, product } = req.body;
   let amount = 1000;
 
-if (product === 'ai-tutor') {
-  amount = 200;
-}
+
 
   if (!name || !email || !phone) {
     return res.status(400).json({ message: 'All fields required.' });
