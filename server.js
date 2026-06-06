@@ -483,7 +483,10 @@ app.post(
   async (req, res) => {
 
     try {
-
+console.log(
+  'ACTIVATE AI SUBSCRIPTION:',
+  req.body
+);
       const {
         name,
         email,
