@@ -496,10 +496,7 @@ const password =
   req.body.password
     ?.trim();
 
-      const {
-  email,
-  password
-} = req.body;
+    
 
 const subscription =
   await AISubscription.findOne({
