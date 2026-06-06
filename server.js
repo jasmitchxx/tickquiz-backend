@@ -196,7 +196,10 @@ app.post('/api/initiate-ai-payment', async (req, res) => {
   console.log('BODY:', req.body);
 
   const name = req.body.name?.trim();
-const email = req.body.email?.trim();
+const email =
+  req.body.email
+    ?.trim()
+    .toLowerCase();
 const phone = req.body.phone?.trim();
 const expiryDate = new Date();
 
@@ -438,7 +441,10 @@ app.post(
 
     try {
 
-      const { email } = req.body;
+      const email =
+  req.body.email
+    ?.trim()
+    .toLowerCase();
 
       const subscription =
         await AISubscription.findOne({
