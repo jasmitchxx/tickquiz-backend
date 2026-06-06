@@ -238,7 +238,7 @@ await AISubscription.findOneAndUpdate(
         },
         body: JSON.stringify({
           email,
-          amount: 200,
+          amount: 6500,
           callback_url:
             'https://tickquiz.netlify.app/ai-success',
           metadata: {
@@ -492,10 +492,20 @@ app.post(
     ?.trim()
     .toLowerCase();
 
-      const subscription =
-        await AISubscription.findOne({
-          email
-        });
+const password =
+  req.body.password
+    ?.trim();
+
+      const {
+  email,
+  password
+} = req.body;
+
+const subscription =
+  await AISubscription.findOne({
+    email,
+    password
+  });
 
       if (!subscription) {
 
@@ -540,10 +550,11 @@ console.log(
   req.body
 );
       const {
-        name,
-        email,
-        phone
-      } = req.body;
+  name,
+  email,
+  phone,
+  password
+} = req.body;
 
       const expiryDate =
         new Date();
@@ -560,7 +571,8 @@ console.log(
           name,
           email,
           phone,
-          expiryDate
+          expiryDate,
+          password
         },
 
         {

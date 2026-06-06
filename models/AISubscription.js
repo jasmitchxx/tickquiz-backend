@@ -3,6 +3,11 @@ const mongoose = require('mongoose');
 const AISubscriptionSchema =
   new mongoose.Schema({
 
+
+    password: {
+  type: String,
+  required: true
+},
     email: {
       type: String,
       required: true
@@ -23,6 +28,7 @@ const AISubscriptionSchema =
       required: true
     }
 
+    
   });
 
 module.exports = mongoose.model(
