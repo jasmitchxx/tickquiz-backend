@@ -8,6 +8,8 @@ const OpenAI = require("openai");
 
 const Result = require('./models/Result');
 const AccessCode = require('./models/AccessCode');
+const AISubscription =
+  require('./models/AISubscription');
 const leaderboardRouter = require('./leaderboard');
 
 
@@ -196,6 +198,27 @@ app.post('/api/initiate-ai-payment', async (req, res) => {
   const name = req.body.name?.trim();
 const email = req.body.email?.trim();
 const phone = req.body.phone?.trim();
+const expiryDate = new Date();
+
+expiryDate.setDate(
+  expiryDate.getDate() + 30
+);
+
+await AISubscription.findOneAndUpdate(
+  { email },
+
+  {
+    name,
+    email,
+    phone,
+    expiryDate
+  },
+
+  {
+    upsert: true,
+    new: true
+  }
+);
 
   try {
 
@@ -409,6 +432,108 @@ ${question}
 });
 
 
+app.post(
+  '/api/check-ai-subscription',
+  async (req, res) => {
+
+    try {
+
+      const { email } = req.body;
+
+      const subscription =
+        await AISubscription.findOne({
+          email
+        });
+
+      if (!subscription) {
+
+        return res.json({
+          active: false
+        });
+
+      }
+
+      const active =
+        new Date(subscription.expiryDate) >
+        new Date();
+
+      res.json({
+        active,
+        expiryDate:
+          subscription.expiryDate
+      });
+
+    } catch (err) {
+
+      console.error(err);
+
+      res.status(500).json({
+        active: false
+      });
+
+    }
+
+  }
+);
+
+
+
+app.post(
+  '/api/activate-ai-subscription',
+  async (req, res) => {
+
+    try {
+
+      const {
+        name,
+        email,
+        phone
+      } = req.body;
+
+      const expiryDate =
+        new Date();
+
+      expiryDate.setDate(
+        expiryDate.getDate() + 30
+      );
+
+      await AISubscription.findOneAndUpdate(
+
+        { email },
+
+        {
+          name,
+          email,
+          phone,
+          expiryDate
+        },
+
+        {
+          upsert: true,
+          new: true
+        }
+
+      );
+
+      res.json({
+        success: true
+      });
+
+    } catch (err) {
+
+      console.error(
+        'AI SUBSCRIPTION ERROR:',
+        err
+      );
+
+      res.status(500).json({
+        success: false
+      });
+
+    }
+
+  }
+);
 
 
 // ================= START SERVER =================
