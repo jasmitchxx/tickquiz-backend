@@ -3,8 +3,11 @@ const express = require('express');
 const mongoose = require('mongoose');
 const fetch = require('node-fetch');
 const multer = require('multer');
-
 const OpenAI = require("openai");
+const pdfParse = require('pdf-parse');
+
+
+
 
 const Result = require('./models/Result');
 const AccessCode = require('./models/AccessCode');
@@ -372,11 +375,55 @@ app.post(
   try {
 
     const { subject, question } = req.body;
-    let fileInfo = '';
+   let fileInfo = '';
 
 if (req.file) {
 
-  fileInfo = `
+  console.log(
+    'FILE RECEIVED:',
+    req.file.originalname
+  );
+
+  if (
+    req.file.mimetype ===
+    'application/pdf'
+  ) {
+
+    try {
+
+      const pdfData =
+        await pdfParse(
+          req.file.buffer
+        );
+
+      fileInfo = `
+PDF CONTENT:
+
+${pdfData.text
+  .substring(0, 12000)}
+`;
+
+      console.log(
+        'PDF TEXT EXTRACTED'
+      );
+
+    } catch (pdfErr) {
+
+      console.error(
+        'PDF ERROR:',
+        pdfErr
+      );
+
+      fileInfo = `
+PDF uploaded but
+could not be read.
+`;
+
+    }
+
+  } else {
+
+    fileInfo = `
 Uploaded File:
 ${req.file.originalname}
 
@@ -384,10 +431,9 @@ File Type:
 ${req.file.mimetype}
 `;
 
-  console.log('FILE RECEIVED:', req.file.originalname);
+  }
 
 }
-
     if (!openai) {
       return res.status(500).json({
         answer: 'AI service unavailable.'
