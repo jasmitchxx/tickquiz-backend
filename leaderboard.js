@@ -4,6 +4,7 @@ const router = express.Router();
 const Result = require('./models/Result');
 
 // ================= HOMEPAGE CHAMPIONS =================
+
 router.get('/homepage-champions', async (req, res) => {
   try {
 
@@ -81,6 +82,50 @@ router.get('/homepage-champions', async (req, res) => {
   }
 });
 
+
+// ================= LEADERBOARD =================
+
+router.get('/', async (req, res) => {
+
+  try {
+
+    const { subject, level } = req.query;
+
+    const filter = {};
+
+    if (subject) {
+      filter.subject = subject;
+    }
+
+    if (level) {
+      filter.level = level;
+    }
+
+    const results =
+      await Result.find(filter)
+      .sort({ score: -1 });
+
+    res.json({
+      results
+    });
+
+  } catch (err) {
+
+    console.error(
+      'LEADERBOARD ERROR:',
+      err
+    );
+
+    res.status(500).json({
+      message:
+        'Failed to load leaderboard'
+    });
+
+  }
+
+});
+
+
 // ================= SAVE RESULT =================
 router.post('/', async (req, res) => {
   try {
@@ -100,6 +145,7 @@ router.post('/', async (req, res) => {
       subject,
       level
     });
+
 
     await result.save();
 
